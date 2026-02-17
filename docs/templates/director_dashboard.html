@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% block title %}หน้า ผอ.{% endblock %}
+
+{% block content %}
+
+<h4 class="fw-bold mb-3">👤 หน้าผู้อำนวยการ</h4>
+
+<!-- เอกสารรอพิจารณา -->
+<div class="card shadow-sm mb-4">
+<div class="card-header bg-warning text-dark fw-bold">
+    📋 เอกสารรอพิจารณา ({{ waiting_docs|length }})
+</div>
+<div class="card-body">
+
+<table class="table table-hover table-bordered align-middle">
+<thead class="table-light text-center">
+<tr>
+    <th>เลขรับ</th>
+    <th>เรื่อง</th>
+    <th>แผนก</th>
+    <th>ความด่วน</th>
+    <th>วันที่</th>
+    <th>จัดการ</th>
+</tr>
+</thead>
+<tbody>
+{% for doc in waiting_docs %}
+<tr>
+    <td class="text-center fw-bold">{{ doc.doc_no }}</td>
+    <td>{{ doc.subject }}</td>
+    <td class="text-center">{{ doc.department }}</td>
+    <td class="text-center">
+        <span class="badge rounded-pill
+        {% if doc.urgency == 'topurgent' %} bg-danger
+        {% elif doc.urgency == 'veryurgent' %} bg-danger
+        {% elif doc.urgency == 'urgent' %} bg-warning text-dark
+        {% else %} bg-secondary {% endif %}">
+        {{ doc.get_urgency_display }}
+        </span>
+    </td>
+    <td class="text-center">{{ doc.created_at|date:"d/m/Y" }}</td>
+    <td class="text-center">
+        <a href="{% url 'detail' pk=doc.doc_no %}" class="btn btn-sm btn-primary">
+            พิจารณา / ลงนาม
+        </a>
+    </td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="6" class="text-center text-muted py-3">ไม่มีเอกสารรอพิจารณา</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+</div>
+</div>
+
+<!-- เอกสารลงนามแล้ว -->
+<div class="card shadow-sm">
+<div class="card-header bg-success text-white fw-bold">
+    ✅ เอกสารลงนามแล้ว ({{ signed_docs|length }})
+</div>
+<div class="card-body">
+
+<table class="table table-hover table-bordered align-middle">
+<thead class="table-light text-center">
+<tr>
+    <th>เลขรับ</th>
+    <th>เรื่อง</th>
+    <th>แผนก</th>
+    <th>สถานะ</th>
+    <th>จัดการ</th>
+</tr>
+</thead>
+<tbody>
+{% for doc in signed_docs %}
+<tr>
+    <td class="text-center fw-bold">{{ doc.doc_no }}</td>
+    <td>{{ doc.subject }}</td>
+    <td class="text-center">{{ doc.department }}</td>
+    <td class="text-center">
+        <span class="badge bg-success">{{ doc.get_status_display }}</span>
+    </td>
+    <td class="text-center">
+        <a href="{% url 'detail' pk=doc.doc_no %}" class="btn btn-sm btn-info">ดู</a>
+    </td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="5" class="text-center text-muted py-3">ยังไม่มีเอกสารที่ลงนาม</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+</div>
+</div>
+
+{% endblock %}

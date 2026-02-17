@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+
+{% block title %}เพิ่มเอกสาร{% endblock %}
+
+{% block content %}
+
+<h4 class="fw-bold mb-3">➕ เพิ่มเอกสารใหม่</h4>
+
+<div class="card shadow-sm">
+<div class="card-body">
+
+<form method="post" enctype="multipart/form-data">
+{% csrf_token %}
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label class="form-label fw-bold">เลขที่หนังสือรับ</label>
+        {{ form.doc_no }}
+    </div>
+    <div class="col-md-6 mb-3">
+        <label class="form-label fw-bold">วันที่</label>
+        {{ form.date }}
+    </div>
+</div>
+
+<div class="mb-3">
+    <label class="form-label fw-bold">เรื่อง</label>
+    {{ form.subject }}
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label class="form-label fw-bold">ผู้ส่ง</label>
+        {{ form.sender }}
+    </div>
+    <div class="col-md-6 mb-3">
+        <label class="form-label fw-bold">เจ้าหน้าที่รับเรื่อง</label>
+        {{ form.officer }}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label class="form-label fw-bold">จากหน่วยงาน</label>
+        {{ form.from_org }}
+    </div>
+    <div class="col-md-6 mb-3">
+        <label class="form-label fw-bold">ถึงหน่วยงาน</label>
+        {{ form.to_org }}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label class="form-label fw-bold">แผนก / ฝ่าย</label>
+        {{ form.department }}
+    </div>
+    <div class="col-md-6 mb-3">
+        <label class="form-label fw-bold">ประเภทหนังสือ</label>
+        {{ form.doc_type }}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label class="form-label fw-bold">ชั้นความลับ</label>
+        {{ form.secret_level }}
+    </div>
+    <div class="col-md-6 mb-3">
+        <label class="form-label fw-bold">ระดับความด่วน</label>
+        {{ form.urgency }}
+    </div>
+</div>
+
+<div class="mb-3">
+    <label class="form-label fw-bold">หมายเหตุ</label>
+    {{ form.remark }}
+</div>
+
+<div class="mb-3">
+    <label class="form-label fw-bold">แนบไฟล์เอกสาร</label>
+    {{ form.file }}
+    <div class="form-text">รองรับไฟล์ PDF, รูปภาพ หรือเอกสารอื่นๆ</div>
+</div>
+
+{% if form.errors %}
+<div class="alert alert-danger">
+    <ul class="mb-0">
+    {% for field, errors in form.errors.items %}
+        {% for error in errors %}
+        <li>{{ field }}: {{ error }}</li>
+        {% endfor %}
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="mt-3">
+    <button type="submit" class="btn btn-success">💾 บันทึกข้อมูล</button>
+    <a href="{% url 'inbox_dashboard' %}" class="btn btn-secondary">ยกเลิก</a>
+</div>
+
+</form>
+
+</div>
+</div>
+
+{% endblock %}

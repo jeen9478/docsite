@@ -1,0 +1,432 @@
+{% extends 'base.html' %}
+{% block title %}รายละเอียดเอกสาร{% endblock %}
+
+{% block content %}
+
+<div class="card shadow-sm">
+
+<div class="card-header bg-primary text-white">
+    📄 รายละเอียดเอกสารเลขรับ {{ doc.doc_no }}
+</div>
+
+<div class="card-body">
+
+<table class="table table-bordered">
+    <tr><th width="200">เลขรับ</th><td>{{ doc.doc_no }}</td></tr>
+    <tr><th>เรื่อง</th><td>{{ doc.subject }}</td></tr>
+    <tr><th>ผู้ส่ง</th><td>{{ doc.sender|default:"-" }}</td></tr>
+    <tr><th>จากหน่วยงาน</th><td>{{ doc.from_org|default:"-" }}</td></tr>
+    <tr><th>ถึงหน่วยงาน</th><td>{{ doc.to_org|default:"-" }}</td></tr>
+    <tr><th>แผนก</th><td>{{ doc.department }}</td></tr>
+    <tr><th>ประเภท</th><td>{{ doc.get_doc_type_display }}</td></tr>
+    <tr><th>ระดับความลับ</th><td>{{ doc.get_secret_level_display }}</td></tr>
+    <tr><th>ระดับความด่วน</th><td>{{ doc.get_urgency_display }}</td></tr>
+    <tr><th>วันที่</th><td>{{ doc.date|date:"d/m/Y" }}</td></tr>
+    <tr><th>เจ้าหน้าที่</th><td>{{ doc.officer|default:"-" }}</td></tr>
+    <tr><th>หมายเหตุ</th><td>{{ doc.remark|default:"-" }}</td></tr>
+    <tr>
+        <th>สถานะ</th>
+        <td>
+            <span class="badge
+            {% if doc.status == 'signed' %} bg-success
+            {% elif doc.status == 'waiting' %} bg-warning text-dark
+            {% elif doc.status == 'forwarded' %} bg-info
+            {% else %} bg-secondary {% endif %}">
+            {{ doc.get_status_display }}
+            </span>
+        </td>
+    </tr>
+    <tr>
+        <th>ไฟล์แนบ</th>
+        <td>
+        {% if doc.file %}
+            <div class="mb-2">
+                <a href="{{ doc.file.url }}" target="_blank" class="btn btn-outline-secondary btn-sm">📄 เปิดไฟล์</a>
+                <a href="{% url 'download_file' doc.doc_no %}" class="btn btn-outline-primary btn-sm">⬇ ดาวน์โหลด</a>
+                <span class="text-muted small ms-2">{{ doc.file.name }}</span>
+            </div>
+            <!-- Preview ถ้าเป็นรูปภาพ -->
+            {% with ext=doc.file.name %}
+            {% if '.png' in ext or '.jpg' in ext or '.jpeg' in ext or '.gif' in ext or '.webp' in ext %}
+            <div class="mt-2 border rounded p-2 bg-light">
+                <img src="{{ doc.file.url }}" alt="ไฟล์แนบ"
+                     style="max-width:100%; max-height:300px;" class="rounded">
+            </div>
+            {% endif %}
+            {% endwith %}
+        {% else %}-{% endif %}
+        </td>
+    </tr>
+</table>
+
+<!-- ลายเซ็น -->
+{% if doc.signature %}
+<div class="alert alert-success">
+    <strong>ลงนามแล้วโดย:</strong> {{ doc.signature.signer.username }}
+    เมื่อ {{ doc.signature.signed_at|date:"d/m/Y H:i" }}
+    {% if doc.signature.signature_image %}
+    <div class="mt-2">
+        <img src="{{ doc.signature.signature_image.url }}" alt="ลายเซ็น"
+             style="max-height:120px; border:1px solid #ccc; border-radius:4px; background:#fff; padding:4px;">
+    </div>
+    {% endif %}
+    {% if doc.signature.comment %}
+    <br><strong>ความเห็น:</strong> {{ doc.signature.comment }}
+    {% endif %}
+</div>
+{% endif %}
+
+<hr>
+
+{% if doc.file %}
+<h5 class="mt-4 mb-3">📄 เอกสาร PDF</h5>
+
+<div style="position:relative;">
+    
+    <iframe src="{% url 'view_file' doc.pk %}"
+        width="100%"
+        height="600px">
+    </iframe>
+
+    <div id="signatureLayer"
+         style="position:absolute;
+                top:0;
+                left:0;
+                width:100%;
+                height:600px;
+                pointer-events:none;">
+        <img id="draggableSignature"
+             style="position:absolute;
+                    width:150px;
+                    display:none;
+                    cursor:move;">
+    </div>
+</div>
+{% else %}
+<div class="alert alert-warning">
+    ⚠️ เอกสารนี้ยังไม่มีไฟล์แนบ
+</div>
+{% endif %}
+
+
+<!-- Workflow Actions -->
+<div class="d-flex gap-2 flex-wrap">
+
+    <!-- ปุ่มกลับ -->
+    <a href="{% url 'inbox_dashboard' %}" class="btn btn-secondary">← กลับหน้าแรก</a>
+    <a href="{% url 'edit' pk=doc.doc_no %}" class="btn btn-warning">✏️ แก้ไข</a>
+
+    <!-- ส่ง ผอ. (เฉพาะสถานะ draft) -->
+    {% if doc.status == 'draft' %}
+    <form method="post" action="{% url 'send_to_director' doc.doc_no %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary"
+                onclick="return confirm('ส่งเอกสารให้ ผอ.พิจารณา?')">
+            📤 ส่ง ผอ.พิจารณา
+        </button>
+    </form>
+    {% endif %}
+
+    <!-- ลงนาม (เฉพาะสถานะ waiting) -->
+    {% if doc.status == 'waiting' %}
+    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#signModal">
+        ✍️ ลงนาม
+    </button>
+    {% endif %}
+
+    <!-- ส่งต่อแผนก (เฉพาะสถานะ signed) -->
+    {% if doc.status == 'signed' %}
+    <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#forwardModal">
+        📨 ส่งต่อแผนก
+    </button>
+    {% endif %}
+
+</div>
+
+</div>
+</div>
+
+<!-- Modal: วาดลายเซ็น -->
+<div class="modal fade" id="signModal" tabindex="-1">
+<div class="modal-dialog modal-lg">
+<div class="modal-content">
+    <form id="signForm" method="post" action="{% url 'sign_document' doc.doc_no %}">
+    {% csrf_token %}
+    <input type="hidden" name="signature_data" id="signatureData">
+    <input type="hidden" name="pos_x" id="posXInput">
+    <input type="hidden" name="pos_y" id="posYInput">
+    <input type="hidden" name="page_number" value="0">
+
+    <div class="modal-header bg-success text-white">
+        <h5 class="modal-title">✍️ วาดลายเซ็นเอกสาร</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <!-- Signature Canvas -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">วาดลายเซ็นในกรอบด้านล่าง</label>
+            <div class="border rounded" style="background:#fff;">
+                <canvas id="signatureCanvas"
+                        style="width:100%; height:250px; cursor:crosshair; touch-action:none; display:block;"></canvas>
+            </div>
+            <div class="mt-2 d-flex gap-2 flex-wrap align-items-center">
+                <button type="button" class="btn btn-outline-danger btn-sm" id="clearSignature">
+                    🗑️ ล้างลายเซ็น
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="undoSignature">
+                    ↩️ ย้อนกลับ
+                </button>
+                <div class="ms-auto d-flex align-items-center gap-2">
+                    <label class="mb-0 small">สี:</label>
+                    <input type="color" id="penColor" value="#000080" style="width:32px;height:28px;padding:1px;border:1px solid #ccc;border-radius:4px;">
+                    <label class="mb-0 small">ขนาด:</label>
+                    <input type="range" id="penSize" min="1" max="8" value="3" style="width:80px;">
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview -->
+        <div class="mb-3 d-none" id="previewSection">
+            <label class="form-label fw-bold">ตัวอย่างลายเซ็น</label>
+            <div class="border rounded p-2 bg-light text-center">
+                <img id="signaturePreview" style="max-height:100px;" alt="preview">
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">ความเห็น</label>
+            <textarea name="comment" class="form-control" rows="2" placeholder="ความเห็นเพิ่มเติม (ถ้ามี)"></textarea>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+        <button type="submit" class="btn btn-success" id="submitSign" disabled>
+            ✅ ยืนยันลงนาม
+        </button>
+    </div>
+    </form>
+</div>
+</div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const canvas = document.getElementById('signatureCanvas');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    let isDrawing = false;
+    let paths = [];
+    let currentPath = null;
+
+    function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+        redraw();
+    }
+
+    function redraw() {
+        const rect = canvas.getBoundingClientRect();
+        ctx.clearRect(0, 0, rect.width, rect.height);
+        paths.forEach(function(path) {
+            if (path.points.length < 2) return;
+            ctx.beginPath();
+            ctx.strokeStyle = path.color;
+            ctx.lineWidth = path.size;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.moveTo(path.points[0].x, path.points[0].y);
+            for (let i = 1; i < path.points.length; i++) {
+                ctx.lineTo(path.points[i].x, path.points[i].y);
+            }
+            ctx.stroke();
+        });
+    }
+
+    function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        let clientX, clientY;
+        if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function startDraw(e) {
+        e.preventDefault();
+        isDrawing = true;
+        const pos = getPos(e);
+        currentPath = {
+            color: document.getElementById('penColor').value,
+            size: parseInt(document.getElementById('penSize').value),
+            points: [pos]
+        };
+        ctx.beginPath();
+        ctx.strokeStyle = currentPath.color;
+        ctx.lineWidth = currentPath.size;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.moveTo(pos.x, pos.y);
+    }
+
+    function draw(e) {
+        if (!isDrawing) return;
+        e.preventDefault();
+        const pos = getPos(e);
+        currentPath.points.push(pos);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+    }
+
+    function endDraw(e) {
+        if (!isDrawing) return;
+        if (e) e.preventDefault();
+        isDrawing = false;
+        if (currentPath && currentPath.points.length > 1) {
+            paths.push(currentPath);
+        }
+        currentPath = null;
+        updatePreview();
+    }
+
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', endDraw);
+    canvas.addEventListener('mouseleave', endDraw);
+    canvas.addEventListener('touchstart', startDraw);
+    canvas.addEventListener('touchmove', draw);
+    canvas.addEventListener('touchend', endDraw);
+
+    document.getElementById('clearSignature').addEventListener('click', function() {
+        paths = [];
+        const rect = canvas.getBoundingClientRect();
+        ctx.clearRect(0, 0, rect.width, rect.height);
+        updatePreview();
+    });
+
+    document.getElementById('undoSignature').addEventListener('click', function() {
+        paths.pop();
+        redraw();
+        updatePreview();
+    });
+
+    function updatePreview() {
+        const submitBtn = document.getElementById('submitSign');
+        const previewSection = document.getElementById('previewSection');
+        const previewImg = document.getElementById('signaturePreview');
+        const dataInput = document.getElementById('signatureData');
+
+        if (paths.length === 0) {
+            submitBtn.disabled = true;
+            previewSection.classList.add('d-none');
+            dataInput.value = '';
+            return;
+        }
+
+        const dataURL = canvas.toDataURL('image/png');
+        previewImg.src = dataURL;
+        previewSection.classList.remove('d-none');
+        dataInput.value = dataURL;
+        submitBtn.disabled = false;
+        showSignature(dataURL);
+    }
+
+    // Resize canvas เมื่อ modal เปิด
+    document.getElementById('signModal').addEventListener('shown.bs.modal', function() {
+        resizeCanvas();
+    });
+
+    document.getElementById('signForm').addEventListener('submit', function(e) {
+        if (!document.getElementById('signatureData').value) {
+            e.preventDefault();
+            alert('กรุณาวาดลายเซ็นก่อนกดยืนยัน');
+        }
+    });
+});
+let posX = 100;
+let posY = 100;
+let isDragging = false;
+let offsetX, offsetY;
+
+const sig = document.getElementById("draggableSignature");
+
+function showSignature(dataURL){
+    sig.src = dataURL;
+    sig.style.display = "block";
+    sig.style.pointerEvents = "auto";
+    sig.style.left = "100px";
+    sig.style.top = "100px";
+}
+
+sig.addEventListener("mousedown", function(e){
+    isDragging = true;
+    offsetX = e.offsetX;
+    offsetY = e.offsetY;
+});
+
+document.addEventListener("mousemove", function(e){
+    if(!isDragging) return;
+
+    const rect = document.getElementById("pdfFrame").getBoundingClientRect();
+
+    posX = e.clientX - rect.left - offsetX;
+    posY = e.clientY - rect.top - offsetY;
+
+    sig.style.left = posX + "px";
+    sig.style.top = posY + "px";
+});
+
+document.addEventListener("mouseup", function(){
+    isDragging = false;
+});
+
+document.getElementById("signForm").addEventListener("submit", function(){
+    document.getElementById("posXInput").value = posX;
+    document.getElementById("posYInput").value = posY;
+});
+</script>
+
+<!-- Modal: ส่งต่อแผนก -->
+<div class="modal fade" id="forwardModal" tabindex="-1">
+<div class="modal-dialog">
+<div class="modal-content">
+    <form method="post" action="{% url 'forward_document' doc.doc_no %}">
+    {% csrf_token %}
+    <div class="modal-header">
+        <h5 class="modal-title">📨 ส่งต่อแผนก</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <div class="mb-3">
+            <label class="form-label">เลือกแผนก</label>
+            <select name="department" class="form-select" required>
+                <option value="">-- เลือกแผนก --</option>
+                {% for dept in departments %}
+                <option value="{{ dept.name }}">{{ dept.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">ความเห็น</label>
+            <textarea name="comment" class="form-control" rows="3"></textarea>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+        <button type="submit" class="btn btn-info">ส่งต่อ</button>
+    </div>
+    </form>
+</div>
+</div>
+</div>
+
+
+
+{% endblock %}

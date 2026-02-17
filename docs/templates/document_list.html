@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}รายการเอกสาร{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="fw-bold mb-0">📥 ระบบรับหนังสือราชการ</h4>
+    <a href="{% url 'document_add' %}" class="btn btn-success shadow-sm">
+        <i class="bi bi-plus-circle"></i> เพิ่มหนังสือใหม่
+    </a>
+</div>
+
+<div class="card shadow-sm">
+<div class="card-body">
+
+<div class="table-responsive">
+<table class="table table-hover table-bordered align-middle">
+<thead class="table-primary text-center">
+<tr>
+    <th>เลขรับ</th>
+    <th>เรื่อง</th>
+    <th>ประเภท</th>
+    <th>ความลับ</th>
+    <th>ความด่วน</th>
+    <th>สถานะ</th>
+    <th>ไฟล์</th>
+    <th width="200">จัดการ</th>
+</tr>
+</thead>
+
+<tbody>
+{% for d in documents %}
+<tr>
+    <td class="text-center fw-bold">{{ d.doc_no }}</td>
+    <td>{{ d.subject }}</td>
+    <td class="text-center">{{ d.get_doc_type_display }}</td>
+
+    <td class="text-center">
+        <span class="badge rounded-pill
+        {% if d.secret_level == 'topsecret' %} bg-danger
+        {% elif d.secret_level == 'verysecret' %} bg-danger
+        {% elif d.secret_level == 'secret' %} bg-warning text-dark
+        {% else %} bg-success {% endif %}">
+        {{ d.get_secret_level_display }}
+        </span>
+    </td>
+
+    <td class="text-center">
+        <span class="badge rounded-pill
+        {% if d.urgency == 'topurgent' %} bg-danger
+        {% elif d.urgency == 'veryurgent' %} bg-danger
+        {% elif d.urgency == 'urgent' %} bg-warning text-dark
+        {% else %} bg-secondary {% endif %}">
+        {{ d.get_urgency_display }}
+        </span>
+    </td>
+
+    <td class="text-center">
+        <span class="badge rounded-pill
+        {% if d.status == 'signed' %} bg-success
+        {% elif d.status == 'waiting' %} bg-warning text-dark
+        {% elif d.status == 'forwarded' %} bg-info
+        {% else %} bg-secondary {% endif %}">
+        {{ d.get_status_display }}
+        </span>
+    </td>
+
+    <td class="text-center">
+    {% if d.file %}
+      <div class="btn-group btn-group-sm">
+        <a href="{{ d.file.url }}" target="_blank"
+           class="btn btn-outline-secondary">
+           เปิด
+        </a>
+        <a href="{% url 'download_file' d.doc_no %}"
+          class="btn btn-outline-primary">
+          ⬇ ดาวน์โหลด
+        </a>
+      </div>
+    {% else %}
+      <span class="text-muted">-</span>
+    {% endif %}
+    </td>
+
+    <td class="text-center">
+        <div class="btn-group btn-group-sm">
+            <a href="{% url 'detail' pk=d.doc_no %}" class="btn btn-info">ดู</a>
+            <a href="{% url 'edit' pk=d.doc_no %}" class="btn btn-warning">แก้</a>
+            <form method="post" action="{% url 'delete' pk=d.doc_no %}"
+                  style="display:inline;"
+                  onsubmit="return confirm('ลบเอกสารนี้หรือไม่?')">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger btn-sm">ลบ</button>
+            </form>
+        </div>
+    </td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="8" class="text-center text-muted py-4">
+        ไม่มีข้อมูลหนังสือ
+    </td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+
+</div>
+</div>
+
+{% endblock %}
