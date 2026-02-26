@@ -106,11 +106,11 @@
 
     <!-- ปุ่มกลับ -->
     <a href="{% url 'inbox_dashboard' %}" class="btn btn-secondary">← กลับหน้าแรก</a>
-    <a href="{% url 'edit' pk=doc.doc_no %}" class="btn btn-warning">✏️ แก้ไข</a>
+    <a href="{% url 'edit' doc.pk %}" class="btn btn-warning">✏️ แก้ไข</a>
 
     <!-- ส่ง ผอ. (เฉพาะสถานะ draft) -->
     {% if doc.status == 'draft' %}
-    <form method="post" action="{% url 'send_to_director' doc.doc_no %}">
+    <form method="post" action="{% url 'send_to_director' doc.pk %}">
         {% csrf_token %}
         <button type="submit" class="btn btn-primary"
                 onclick="return confirm('ส่งเอกสารให้ ผอ.พิจารณา?')">
