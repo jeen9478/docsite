@@ -60,19 +60,24 @@
 </table>
 
 <!-- ลายเซ็น -->
-{% if doc.signature %}
+{% if signatures %}
 <div class="alert alert-success">
-    <strong>ลงนามแล้วโดย:</strong> {{ doc.signature.signer.username }}
-    เมื่อ {{ doc.signature.signed_at|date:"d/m/Y H:i" }}
-    {% if doc.signature.signature_image %}
-    <div class="mt-2">
-        <img src="{{ doc.signature.signature_image.url }}" alt="ลายเซ็น"
-             style="max-height:120px; border:1px solid #ccc; border-radius:4px; background:#fff; padding:4px;">
+    <strong>ลายเซ็นทั้งหมด ({{ signatures|length }} รายการ):</strong>
+    {% for sig in signatures %}
+    <div class="mb-3 {% if not forloop.last %}border-bottom pb-3{% endif %}">
+        <strong>{{ forloop.counter }}. ลงนามโดย:</strong> {{ sig.signer.username }}
+        เมื่อ {{ sig.signed_at|date:"d/m/Y H:i" }}
+        {% if sig.signature_image %}
+        <div class="mt-2">
+            <img src="{{ sig.signature_image.url }}" alt="ลายเซ็น"
+                 style="max-height:120px; border:1px solid #ccc; border-radius:4px; background:#fff; padding:4px;">
+        </div>
+        {% endif %}
+        {% if sig.comment %}
+        <br><strong>ความเห็น:</strong> {{ sig.comment }}
+        {% endif %}
     </div>
-    {% endif %}
-    {% if doc.signature.comment %}
-    <br><strong>ความเห็น:</strong> {{ doc.signature.comment }}
-    {% endif %}
+    {% endfor %}
 </div>
 {% endif %}
 
@@ -81,27 +86,14 @@
 {% if doc.file %}
 <h5 class="mt-4 mb-3">📄 เอกสาร PDF</h5>
 
-<div style="position:relative;">
-    
-    <iframe src="{% url 'view_file' doc.pk %}"
+<div style="border:2px solid #dee2e6; border-radius:4px;">
+    <iframe id="pdfFrame" src="{% url 'view_file' doc.pk %}"
         width="100%"
-        height="600px">
+        height="600px"
+        style="display:block;">
     </iframe>
-
-    <div id="signatureLayer"
-         style="position:absolute;
-                top:0;
-                left:0;
-                width:100%;
-                height:600px;
-                pointer-events:none;">
-        <img id="draggableSignature"
-             style="position:absolute;
-                    width:150px;
-                    display:none;
-                    cursor:move;">
-    </div>
 </div>
+
 {% else %}
 <div class="alert alert-warning">
     ⚠️ เอกสารนี้ยังไม่มีไฟล์แนบ
@@ -127,8 +119,8 @@
     </form>
     {% endif %}
 
-    <!-- ลงนาม (เฉพาะสถานะ waiting) -->
-    {% if doc.status == 'waiting' %}
+    <!-- ลงนาม -->
+    {% if can_sign %}
     <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#signModal">
         ✍️ ลงนาม
     </button>
@@ -148,7 +140,7 @@
 
 <!-- Modal: วาดลายเซ็น -->
 <div class="modal fade" id="signModal" tabindex="-1">
-<div class="modal-dialog modal-lg">
+<div class="modal-dialog modal-xl">
 <div class="modal-content">
     <form id="signForm" method="post" action="{% url 'sign_document' doc.doc_no %}">
     {% csrf_token %}
@@ -162,12 +154,12 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
     </div>
     <div class="modal-body">
-        <!-- Signature Canvas -->
+        <!-- Step 1: Signature Canvas -->
         <div class="mb-3">
-            <label class="form-label fw-bold">วาดลายเซ็นในกรอบด้านล่าง</label>
+            <label class="form-label fw-bold">ขั้นตอน 1: วาดลายเซ็น</label>
             <div class="border rounded" style="background:#fff;">
                 <canvas id="signatureCanvas"
-                        style="width:100%; height:250px; cursor:crosshair; touch-action:none; display:block;"></canvas>
+                        style="width:100%; height:200px; cursor:crosshair; touch-action:none; display:block;"></canvas>
             </div>
             <div class="mt-2 d-flex gap-2 flex-wrap align-items-center">
                 <button type="button" class="btn btn-outline-danger btn-sm" id="clearSignature">
@@ -185,11 +177,52 @@
             </div>
         </div>
 
+        <!-- Step 2: Position Picker -->
+        <div id="pdfWrapper"
+            style="position:relative;
+                width:100%;
+                aspect-ratio:595 / 842;
+                margin:0 auto;
+                border:2px solid #adb5bd;
+                box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+
+            {% if doc.file %}
+            <iframe src="{% url 'view_file' doc.pk %}#view=FitH"
+                    style="width:100%;
+                        height:100%;
+                        border:none;">
+            </iframe>
+            {% endif %}
+
+            <!-- Overlay (ไม่กินเมาส์) -->
+            <div id="positionPicker"
+                style="position:absolute;
+                        top:0;
+                        left:0;
+                        width:100%;
+                        height:100%;
+                        pointer-events:none;">
+            </div>
+
+            <!-- Signature -->
+            <img id="sigOnPage"
+                style="position:absolute;
+                        display:none;
+                        pointer-events:auto;
+                        border:2px dashed #28a745;
+                        border-radius:3px;
+                        background:rgba(255,255,255,0.8);
+                        padding:1px;
+                        z-index:5;
+                        width:120px;
+                        height:auto;">
+        </div>
+
         <!-- Preview -->
         <div class="mb-3 d-none" id="previewSection">
             <label class="form-label fw-bold">ตัวอย่างลายเซ็น</label>
             <div class="border rounded p-2 bg-light text-center">
-                <img id="signaturePreview" style="max-height:100px;" alt="preview">
+                <img id="signaturePreview" style="max-height:80px;" alt="preview">
             </div>
         </div>
 
@@ -218,6 +251,18 @@ document.addEventListener('DOMContentLoaded', function() {
     let isDrawing = false;
     let paths = [];
     let currentPath = null;
+    let signatureDataURL = null;
+
+    // PDF page dimensions (A4 in points)
+    const PDF_WIDTH = 595;
+    const PDF_HEIGHT = 842;
+    // Signature size in PDF points (must match views.py: width=150, height=80)
+    const SIG_W = 150;
+    const SIG_H = 80;
+
+    // Position in PDF coordinates (default: bottom-right area)
+    let posX = 350;
+    let posY = 700;
 
     function resizeCanvas() {
         const rect = canvas.getBoundingClientRect();
@@ -322,11 +367,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const previewSection = document.getElementById('previewSection');
         const previewImg = document.getElementById('signaturePreview');
         const dataInput = document.getElementById('signatureData');
+        const positionSection = document.getElementById('positionSection');
+        const sigOnPage = document.getElementById('sigOnPage');
 
         if (paths.length === 0) {
             submitBtn.disabled = true;
             previewSection.classList.add('d-none');
+            if (positionSection) positionSection.classList.add('d-none');
             dataInput.value = '';
+            signatureDataURL = null;
+            if (sigOnPage) sigOnPage.style.display = 'none';
             return;
         }
 
@@ -335,61 +385,113 @@ document.addEventListener('DOMContentLoaded', function() {
         previewSection.classList.remove('d-none');
         dataInput.value = dataURL;
         submitBtn.disabled = false;
-        showSignature(dataURL);
+        signatureDataURL = dataURL;
+
+        // Show position picker
+        if (positionSection) positionSection.classList.remove('d-none');
+
+        // Update sig preview on page picker
+        if (sigOnPage) {
+            sigOnPage.src = dataURL;
+            updateSigOnPage();
+        }
     }
 
-    // Resize canvas เมื่อ modal เปิด
-    document.getElementById('signModal').addEventListener('shown.bs.modal', function() {
-        resizeCanvas();
-    });
+    // ===== Position Picker (inside modal) =====
+    const picker = document.getElementById('positionPicker');
+    const sigOnPage = document.getElementById('sigOnPage');
+    const pickerHint = document.getElementById('pickerHint');
+    const posLabel = document.getElementById('posLabel');
 
-    document.getElementById('signForm').addEventListener('submit', function(e) {
-        if (!document.getElementById('signatureData').value) {
-            e.preventDefault();
-            alert('กรุณาวาดลายเซ็นก่อนกดยืนยัน');
-        }
-    });
-});
-let posX = 100;
-let posY = 100;
-let isDragging = false;
-let offsetX, offsetY;
+    function updateSigOnPage() {
+        if (!sigOnPage || !picker || !signatureDataURL) return;
+        const pickerRect = picker.getBoundingClientRect();
+        const pw = pickerRect.width;
+        const ph = pickerRect.height;
 
-const sig = document.getElementById("draggableSignature");
+        // Convert PDF coords to picker pixel coords
+        const pxX = (posX / PDF_WIDTH) * pw;
+        const pxY = (posY / PDF_HEIGHT) * ph;
+        const pxW = (SIG_W / PDF_WIDTH) * pw;
+        const pxH = (SIG_H / PDF_HEIGHT) * ph;
 
-function showSignature(dataURL){
-    sig.src = dataURL;
-    sig.style.display = "block";
-    sig.style.pointerEvents = "auto";
-    sig.style.left = "100px";
-    sig.style.top = "100px";
-}
+        sigOnPage.src = signatureDataURL;
+        sigOnPage.style.display = 'block';
+        sigOnPage.style.left = pxX + 'px';
+        sigOnPage.style.top = pxY + 'px';
+        sigOnPage.style.width = pxW + 'px';
+        sigOnPage.style.height = pxH + 'px';
 
-sig.addEventListener("mousedown", function(e){
-    isDragging = true;
-    offsetX = e.offsetX;
-    offsetY = e.offsetY;
-});
+        if (pickerHint) pickerHint.style.display = 'none';
+        if (posLabel) posLabel.textContent = 'ตำแหน่ง PDF: (' + Math.round(posX) + ', ' + Math.round(posY) + ')';
+    }
 
-document.addEventListener("mousemove", function(e){
-    if(!isDragging) return;
+    // ================= DRAG SIGNATURE (PDF COORD SAFE) =================
+    let isDragging = false;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
 
-    const rect = document.getElementById("pdfFrame").getBoundingClientRect();
+    if (sigOnPage) {
 
-    posX = e.clientX - rect.left - offsetX;
-    posY = e.clientY - rect.top - offsetY;
+        sigOnPage.style.cursor = "move";
 
-    sig.style.left = posX + "px";
-    sig.style.top = posY + "px";
-});
+        sigOnPage.addEventListener("mousedown", function(e) {
+            if (!signatureDataURL) return;
 
-document.addEventListener("mouseup", function(){
-    isDragging = false;
-});
+            isDragging = true;
 
-document.getElementById("signForm").addEventListener("submit", function(){
-    document.getElementById("posXInput").value = posX;
-    document.getElementById("posYInput").value = posY;
+            const rect = sigOnPage.getBoundingClientRect();
+            dragOffsetX = e.clientX - rect.left;
+            dragOffsetY = e.clientY - rect.top;
+
+            e.stopPropagation();
+        });
+
+        document.addEventListener("mousemove", function(e) {
+            if (!isDragging) return;
+
+            const pickerRect = picker.getBoundingClientRect();
+
+            let newLeft = e.clientX - pickerRect.left - dragOffsetX;
+            let newTop = e.clientY - pickerRect.top - dragOffsetY;
+
+            // convert pixel -> PDF coords
+            posX = (newLeft / pickerRect.width) * PDF_WIDTH;
+            posY = (newTop / pickerRect.height) * PDF_HEIGHT;
+
+            // clamp
+            posX = Math.max(0, Math.min(posX, PDF_WIDTH - SIG_W));
+            posY = Math.max(0, Math.min(posY, PDF_HEIGHT - SIG_H));
+
+            updateSigOnPage();
+        });
+
+        document.addEventListener("mouseup", function() {
+            isDragging = false;
+        });
+    }
+    
+    // Resize canvas when modal opens
+    const signModal = document.getElementById('signModal');
+    if (signModal) {
+        signModal.addEventListener('shown.bs.modal', function() {
+            resizeCanvas();
+        });
+    }
+
+    // Submit form
+    const signForm = document.getElementById('signForm');
+    if (signForm) {
+        signForm.addEventListener('submit', function(e) {
+            if (!document.getElementById('signatureData').value) {
+                e.preventDefault();
+                alert('กรุณาวาดลายเซ็นก่อนกดยืนยัน');
+                return;
+            }
+            document.getElementById('posXInput').value = posX;
+            document.getElementById('posYInput').value = posY;
+        });
+    }
 });
 </script>
 

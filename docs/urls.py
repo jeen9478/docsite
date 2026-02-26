@@ -20,9 +20,9 @@ urlpatterns = [
     path('documents/', views.document_list, name='document_list'),
     path('search/', views.doc_list, name='doc_list'),
     path('add/', views.document_add, name='document_add'),
-    path('detail/<str:pk>/', views.document_detail, name='detail'),
-    path('edit/<str:pk>/', views.document_edit, name='edit'),
-    path('delete/<str:pk>/', views.document_delete, name='delete'),
+    path('detail/<int:pk>/', views.document_detail, name='detail'),
+    path('edit/<int:pk>/', views.document_edit, name='edit'),
+    path('delete/<int:pk>/', views.document_delete, name='delete'),
     path('download/<str:doc_no>/', views.download_file, name='download_file'),
 
     # Workflow
@@ -34,6 +34,6 @@ urlpatterns = [
     # Notification
     path('notification/read/<int:notif_id>/', views.mark_notification_read, name='mark_notification_read'),
 
-    path('view/<int:pk>/', views.view_file, name='view_file'),
+    path('view/<str:pk>/', views.view_file, name='view_file'),
 
 ]

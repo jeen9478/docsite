@@ -14,3 +14,15 @@ def notifications(request):
         'unread_notifications': [],
         'unread_count': 0,
     }
+
+
+def user_role(request):
+    if request.user.is_authenticated and hasattr(request.user, 'profile'):
+        return {
+            'user_role': request.user.profile.role,
+            'user_department': request.user.profile.department,
+        }
+    return {
+        'user_role': None,
+        'user_department': None,
+    }

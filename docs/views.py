@@ -15,6 +15,7 @@ from pypdf import PdfReader, PdfWriter
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 from django.conf import settings
+from .decorators import role_required
 
 @login_required
 def document_list(request):
@@ -50,15 +51,13 @@ def send_to_director(request, doc_no):
     doc.status = 'waiting'
     doc.save()
 
-    # แจ้งเตือนผอ. (ถ้ามี user ชื่อ director)
-    try:
-        director = User.objects.get(username='director')
+    # แจ้งเตือนผู้บริหารทุกคน
+    executives = User.objects.filter(profile__role__in=['executive', 'admin'])
+    for exec_user in executives:
         Notification.objects.create(
-            user=director,
+            user=exec_user,
             message=f'มีเอกสาร {doc.doc_no} รอพิจารณา'
         )
-    except User.DoesNotExist:
-        pass
 
     return redirect('detail', pk=doc.doc_no)
 
@@ -74,7 +73,7 @@ def sign_document(request, doc_no):
     page_number = int(request.POST.get("page_number", 0))
 
     if not signature_data or not signature_data.startswith("data:image/"):
-        return redirect("detail", pk=doc.doc_no)
+        return redirect("detail", pk=doc.pk)
 
     # ===== แปลง base64 =====
     format_str, imgstr = signature_data.split(";base64,")
@@ -85,11 +84,20 @@ def sign_document(request, doc_no):
     # ===== บันทึก Signature model =====
     sig, created = Signature.objects.get_or_create(
         document=doc,
+        signer=request.user,
         defaults={
-            "signer": request.user,
-            "comment": request.POST.get("comment", "")
+            "comment": request.POST.get("comment", ""),
+            "pos_x": pos_x,
+            "pos_y": pos_y,
+            "page_number": page_number,
         }
     )
+
+    if not created:
+        sig.comment = request.POST.get("comment", "")
+        sig.pos_x = pos_x
+        sig.pos_y = pos_y
+        sig.page_number = page_number
 
     sig.signature_image.save(filename, image_file, save=True)
 
@@ -97,20 +105,22 @@ def sign_document(request, doc_no):
     pdf_reader = PdfReader(doc.file.path)
     writer = PdfWriter()
 
-    packet = BytesIO()
-    can = canvas.Canvas(packet)
-
     page = pdf_reader.pages[page_number]
+    page_width = float(page.mediabox.width)
     page_height = float(page.mediabox.height)
+
+    packet = BytesIO()
+    can = canvas.Canvas(packet, pagesize=(page_width, page_height))
 
     image = ImageReader(sig.signature_image.path)
 
     can.drawImage(
         image,
-        pos_x,
-        page_height - pos_y - 80,
+        sig.pos_x,
+        page_height - sig.pos_y - 80,
         width=150,
-        height=80,
+        height=150,
+        preserveAspectRatio=True,
         mask='auto'
     )
 
@@ -133,6 +143,7 @@ def sign_document(request, doc_no):
 
     doc.file.name = f"uploads/{signed_filename}"
     doc.status = "signed"
+    doc.is_accepted = True
     doc.save()
 
     # ===== Notification =====
@@ -142,7 +153,7 @@ def sign_document(request, doc_no):
             message=f"เอกสาร {doc.doc_no} ผอ.ลงนามแล้ว"
         )
 
-    return redirect("detail", pk=doc.doc_no)
+    return redirect("detail", pk=doc.pk)
 
 
 
@@ -193,9 +204,14 @@ def receive_document(request, route_id):
 def document_detail(request, pk):
     doc = get_object_or_404(Document, pk=pk)
     departments = Department.objects.all()
+    signatures = doc.signatures.select_related('signer').all()
+    user_has_signed = doc.signatures.filter(signer=request.user).exists()
+    can_sign = doc.status in ('waiting', 'signed') and not user_has_signed
     return render(request, 'document_detail.html', {
         'doc': doc,
         'departments': departments,
+        'signatures': signatures,
+        'can_sign': can_sign,
     })
 
 
@@ -329,6 +345,7 @@ def inbox_dashboard(request):
 
 
 @login_required
+@role_required('executive', 'admin')
 def director_dashboard(request):
     waiting_docs = Document.objects.filter(status='waiting').order_by('-created_at')
     signed_docs = Document.objects.filter(status='signed').order_by('-created_at')

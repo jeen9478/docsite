@@ -29,13 +29,14 @@ class Document(models.Model):
         ('signed','ผอ.ลงนามแล้ว'),
         ('forwarded','ส่งต่อแผนกแล้ว'),
     ]
+    
+    id = models.BigAutoField(primary_key=True)
 
     doc_no = models.CharField(
-        primary_key=True,
         max_length=50,
         unique=True
     )
-    
+
     date = models.DateField()
     from_org = models.CharField(max_length=255, blank=True)
     to_org = models.CharField(max_length=255, blank=True)
@@ -48,7 +49,7 @@ class Document(models.Model):
     secret_level = models.CharField(max_length=12, choices=SECRET_CHOICES, default='normal')
     urgency = models.CharField(max_length=12, choices=URGENCY_CHOICES, default='normal')
     remark = models.TextField(blank=True)
-    file = models.FileField(upload_to='uploads/', validators=[FileExtensionValidator(['pdf'])], blank=True, null=True)
+    file = models.FileField(upload_to='uploads/', validators=[FileExtensionValidator(['pdf'])], blank=False, null=True)
 
     #  เพิ่มเพื่อ workflow
     status = models.CharField(
@@ -69,18 +70,24 @@ class Document(models.Model):
         return self.subject
 
 class Signature(models.Model):
-    document = models.OneToOneField(
+    document = models.ForeignKey(
         Document,
         on_delete=models.CASCADE,
-        related_name='signature'
+        related_name='signatures'
     )
     signer = models.ForeignKey(User, on_delete=models.CASCADE)
     signature_image = models.ImageField(upload_to='signatures/')
     signed_at = models.DateTimeField(auto_now_add=True)
     comment = models.TextField(blank=True)
+    pos_x = models.FloatField(default=100)
+    pos_y = models.FloatField(default=100)
+    page_number = models.IntegerField(default=0)
+
+    class Meta:
+        unique_together = ['document', 'signer']
 
     def __str__(self):
-        return f'ลายเซ็น {self.document.doc_no}'
+        return f'ลายเซ็น {self.signer.username} - {self.document.doc_no}'
 
 class DocumentRoute(models.Model):
     document = models.ForeignKey(Document, on_delete=models.CASCADE)
@@ -134,5 +141,21 @@ class DocumentFlow(models.Model):
         return f"{self.document.doc_no} → {self.to_department}"
   
 class Profile(models.Model):
+    ROLE_CHOICES = [
+        ('admin', 'ผู้ดูแลระบบ'),
+        ('doctor', 'แพทย์'),
+        ('nurse', 'พยาบาล/เจ้าหน้าที่'),
+        ('executive', 'ผู้บริหาร'),
+    ]
+
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     department = models.CharField(max_length=100)
+    role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+        default='nurse',
+        verbose_name='บทบาท'
+    )
+
+    def __str__(self):
+        return f'{self.user.username} ({self.get_role_display()})'

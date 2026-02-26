@@ -83,9 +83,9 @@
 
     <td class="text-center">
         <div class="btn-group btn-group-sm">
-            <a href="{% url 'detail' pk=d.doc_no %}" class="btn btn-info">ดู</a>
-            <a href="{% url 'edit' pk=d.doc_no %}" class="btn btn-warning">แก้</a>
-            <form method="post" action="{% url 'delete' pk=d.doc_no %}"
+            <a href="{% url 'detail' d.pk %}" class="btn btn-info">ดู</a>
+            <a href="{% url 'edit' d.pk %}" class="btn btn-warning">แก้</a>
+            <form method="post" action="{% url 'delete' d.pk %}"
                   style="display:inline;"
                   onsubmit="return confirm('ลบเอกสารนี้หรือไม่?')">
                 {% csrf_token %}
