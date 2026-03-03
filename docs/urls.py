@@ -13,7 +13,6 @@ urlpatterns = [
 
     # Dashboard
     path('inbox/', views.inbox_dashboard, name='inbox_dashboard'),
-    path('dept-inbox/', views.inbox, name='dept_inbox'),
     path('director/', views.director_dashboard, name='director_dashboard'),
 
     # Document CRUD

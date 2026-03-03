@@ -63,11 +63,6 @@
                     ➕ เพิ่มเอกสาร
                 </a>
             </li>
-            <li class="nav-item">
-                <a href="{% url 'dept_inbox' %}" class="nav-link text-white">
-                    🏢 เอกสารแผนก
-                </a>
-            </li>
             {% if user.is_superuser or user_role == 'executive' or user_role == 'admin' %}
             <li class="nav-item">
                 <a href="{% url 'director_dashboard' %}" class="nav-link text-white">

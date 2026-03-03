@@ -143,9 +143,8 @@ class DocumentFlow(models.Model):
 class Profile(models.Model):
     ROLE_CHOICES = [
         ('admin', 'ผู้ดูแลระบบ'),
-        ('doctor', 'แพทย์'),
-        ('nurse', 'พยาบาล/เจ้าหน้าที่'),
-        ('executive', 'ผู้บริหาร'),
+        ('staff', 'เจ้าหน้าที่'),
+        ('director', 'ผู้อำนวยการ'),
     ]
 
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -153,7 +152,7 @@ class Profile(models.Model):
     role = models.CharField(
         max_length=20,
         choices=ROLE_CHOICES,
-        default='nurse',
+        default='staff',
         verbose_name='บทบาท'
     )
 
