@@ -1,111 +1,250 @@
 {% extends "base.html" %}
 {% block title %}รายการเอกสาร{% endblock %}
+{% block page_title %}📄 รายการเอกสาร{% endblock %}
+
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="fw-bold mb-0">📥 ระบบรับหนังสือราชการ</h4>
-    <a href="{% url 'document_add' %}" class="btn btn-success shadow-sm">
-        <i class="bi bi-plus-circle"></i> เพิ่มหนังสือใหม่
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 style="font-weight:700; color:#1a2e38; margin:0;">รายการหนังสือราชการ</h4>
+        <small style="color:#5a7a8a;">ค้นหา กรอง และจัดการเอกสารทั้งหมดในระบบ</small>
+    </div>
+    {% if user.is_superuser or user_role == 'director' or user_role == 'admin' %}
+    <a href="{% url 'document_add' %}" style="
+        background:linear-gradient(135deg,#29abe2,#1a8fc2);
+        color:#fff; border:none; border-radius:10px;
+        padding:10px 20px; font-family:inherit; font-size:0.9rem;
+        font-weight:600; text-decoration:none; display:inline-flex;
+        align-items:center; gap:8px;
+        box-shadow:0 4px 14px rgba(41,171,226,0.35);
+        transition:all 0.2s;
+    " onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''">
+        ➕ เพิ่มหนังสือใหม่
     </a>
-</div>
-
-<div class="card shadow-sm">
-<div class="card-body">
-
-<div class="table-responsive">
-<table class="table table-hover table-bordered align-middle">
-<thead class="table-primary text-center">
-<tr>
-    <th>เลขรับ</th>
-    <th>เรื่อง</th>
-    <th>ประเภท</th>
-    <th>ความลับ</th>
-    <th>ความด่วน</th>
-    <th>สถานะ</th>
-    <th>ไฟล์</th>
-    <th width="200">จัดการ</th>
-</tr>
-</thead>
-
-<tbody>
-{% for d in documents %}
-<tr>
-    <td class="text-center fw-bold">{{ d.doc_no }}</td>
-    <td>{{ d.subject }}</td>
-    <td class="text-center">{{ d.get_doc_type_display }}</td>
-
-    <td class="text-center">
-        <span class="badge rounded-pill
-        {% if d.secret_level == 'topsecret' %} bg-danger
-        {% elif d.secret_level == 'verysecret' %} bg-danger
-        {% elif d.secret_level == 'secret' %} bg-warning text-dark
-        {% else %} bg-success {% endif %}">
-        {{ d.get_secret_level_display }}
-        </span>
-    </td>
-
-    <td class="text-center">
-        <span class="badge rounded-pill
-        {% if d.urgency == 'topurgent' %} bg-danger
-        {% elif d.urgency == 'veryurgent' %} bg-danger
-        {% elif d.urgency == 'urgent' %} bg-warning text-dark
-        {% else %} bg-secondary {% endif %}">
-        {{ d.get_urgency_display }}
-        </span>
-    </td>
-
-    <td class="text-center">
-        <span class="badge rounded-pill
-        {% if d.status == 'signed' %} bg-success
-        {% elif d.status == 'waiting' %} bg-warning text-dark
-        {% elif d.status == 'forwarded' %} bg-info
-        {% else %} bg-secondary {% endif %}">
-        {{ d.get_status_display }}
-        </span>
-    </td>
-
-    <td class="text-center">
-    {% if d.file %}
-      <div class="btn-group btn-group-sm">
-        <a href="{{ d.file.url }}" target="_blank"
-           class="btn btn-outline-secondary">
-           เปิด
-        </a>
-        <a href="{% url 'download_file' d.doc_no %}"
-          class="btn btn-outline-primary">
-          ⬇ ดาวน์โหลด
-        </a>
-      </div>
-    {% else %}
-      <span class="text-muted">-</span>
     {% endif %}
-    </td>
-
-    <td class="text-center">
-        <div class="btn-group btn-group-sm">
-            <a href="{% url 'detail' d.pk %}" class="btn btn-info">ดู</a>
-            <a href="{% url 'edit' d.pk %}" class="btn btn-warning">แก้</a>
-            <form method="post" action="{% url 'delete' d.pk %}"
-                  style="display:inline;"
-                  onsubmit="return confirm('ลบเอกสารนี้หรือไม่?')">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-danger btn-sm">ลบ</button>
-            </form>
-        </div>
-    </td>
-</tr>
-{% empty %}
-<tr>
-    <td colspan="8" class="text-center text-muted py-4">
-        ไม่มีข้อมูลหนังสือ
-    </td>
-</tr>
-{% endfor %}
-</tbody>
-</table>
 </div>
 
+<!-- Search & Filter Card -->
+<div class="card border-0 mb-4" style="border-radius:16px; box-shadow:0 2px 16px rgba(10,107,138,0.08); overflow:hidden;">
+
+    <div style="background:#29abe2; padding:14px 22px; display:flex; align-items:center; gap:10px;">
+        <div style="width:32px;height:32px;background:rgba(255,255,255,0.2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem;">🔍</div>
+        <span style="font-weight:700; color:#fff; font-size:0.95rem;">ค้นหาและกรองเอกสาร</span>
+    </div>
+
+    <div style="background:#fff; padding:20px 24px;">
+        <form method="get">
+            <div class="row g-3">
+
+                <!-- คำค้นหา -->
+                <div class="col-md-4">
+                    <label style="font-weight:600; font-size:0.83rem; color:#1a2e38; display:block; margin-bottom:5px;">คำค้นหา</label>
+                    <div style="position:relative;">
+                        <span style="position:absolute; left:11px; top:50%; transform:translateY(-50%); color:#90b8cc;">🔍</span>
+                        <input name="q" value="{{ q }}" placeholder="เลขรับ / เรื่อง / ผู้ส่ง..." style="
+                            width:100%; border:1.5px solid #c8e8f5; border-radius:10px;
+                            padding:9px 12px 9px 34px; font-family:'Sarabun',sans-serif;
+                            font-size:0.9rem; color:#1a2e38; background:#fff;
+                            outline:none; box-sizing:border-box; transition:border-color 0.2s;
+                        " onfocus="this.style.borderColor='#29abe2';this.style.boxShadow='0 0 0 3px rgba(41,171,226,0.15)'"
+                           onblur="this.style.borderColor='#c8e8f5';this.style.boxShadow='none'">
+                    </div>
+                </div>
+
+                <!-- แผนก -->
+                <div class="col-md-2">
+                    <label style="font-weight:600; font-size:0.83rem; color:#1a2e38; display:block; margin-bottom:5px;">แผนก</label>
+                    <select name="department" style="width:100%;border:1.5px solid #c8e8f5;border-radius:10px;padding:9px 12px;font-family:'Sarabun',sans-serif;font-size:0.9rem;color:#1a2e38;background:#fff;outline:none;box-sizing:border-box;"
+                        onfocus="this.style.borderColor='#29abe2'" onblur="this.style.borderColor='#c8e8f5'">
+                        <option value="">— ทุกแผนก —</option>
+                        {% for dep in departments %}
+                        <option value="{{ dep }}" {% if dep == department %}selected{% endif %}>{{ dep }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- ชั้นความลับ -->
+                <div class="col-md-2">
+                    <label style="font-weight:600; font-size:0.83rem; color:#1a2e38; display:block; margin-bottom:5px;">ชั้นความลับ</label>
+                    <select name="secret" style="width:100%;border:1.5px solid #c8e8f5;border-radius:10px;padding:9px 12px;font-family:'Sarabun',sans-serif;font-size:0.9rem;color:#1a2e38;background:#fff;outline:none;box-sizing:border-box;"
+                        onfocus="this.style.borderColor='#29abe2'" onblur="this.style.borderColor='#c8e8f5'">
+                        <option value="">— ทั้งหมด —</option>
+                        <option value="normal"     {% if secret == "normal"     %}selected{% endif %}>ปกติ</option>
+                        <option value="secret"     {% if secret == "secret"     %}selected{% endif %}>ลับ</option>
+                        <option value="verysecret" {% if secret == "verysecret" %}selected{% endif %}>ลับมาก</option>
+                        <option value="topsecret"  {% if secret == "topsecret"  %}selected{% endif %}>ลับที่สุด</option>
+                    </select>
+                </div>
+
+                <!-- ความด่วน -->
+                <div class="col-md-2">
+                    <label style="font-weight:600; font-size:0.83rem; color:#1a2e38; display:block; margin-bottom:5px;">ความด่วน</label>
+                    <select name="urgency" style="width:100%;border:1.5px solid #c8e8f5;border-radius:10px;padding:9px 12px;font-family:'Sarabun',sans-serif;font-size:0.9rem;color:#1a2e38;background:#fff;outline:none;box-sizing:border-box;"
+                        onfocus="this.style.borderColor='#29abe2'" onblur="this.style.borderColor='#c8e8f5'">
+                        <option value="">— ทั้งหมด —</option>
+                        <option value="normal"     {% if urgency == "normal"     %}selected{% endif %}>ปกติ</option>
+                        <option value="urgent"     {% if urgency == "urgent"     %}selected{% endif %}>ด่วน</option>
+                        <option value="veryurgent" {% if urgency == "veryurgent" %}selected{% endif %}>ด่วนมาก</option>
+                        <option value="topurgent"  {% if urgency == "topurgent"  %}selected{% endif %}>ด่วนที่สุด</option>
+                    </select>
+                </div>
+
+                <!-- ปุ่มค้นหา -->
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" style="
+                        width:100%; background:linear-gradient(135deg,#29abe2,#1a8fc2);
+                        color:#fff; border:none; border-radius:10px; padding:9px 12px;
+                        font-family:'Sarabun',sans-serif; font-size:0.9rem; font-weight:600;
+                        cursor:pointer; box-shadow:0 4px 14px rgba(41,171,226,0.3);
+                    ">🔍 ค้นหา</button>
+                </div>
+
+                <!-- วันที่ตั้งแต่ -->
+                <div class="col-md-3">
+                    <label style="font-weight:600; font-size:0.83rem; color:#1a2e38; display:block; margin-bottom:5px;">📅 วันที่ตั้งแต่</label>
+                    <input type="date" name="date_from" value="{{ date_from }}" style="
+                        width:100%; border:1.5px solid #c8e8f5; border-radius:10px;
+                        padding:9px 12px; font-family:'Sarabun',sans-serif; font-size:0.9rem;
+                        color:#1a2e38; background:#fff; outline:none; box-sizing:border-box;
+                    " onfocus="this.style.borderColor='#29abe2'" onblur="this.style.borderColor='#c8e8f5'">
+                </div>
+
+                <!-- วันที่ถึง -->
+                <div class="col-md-3">
+                    <label style="font-weight:600; font-size:0.83rem; color:#1a2e38; display:block; margin-bottom:5px;">📅 ถึงวันที่</label>
+                    <input type="date" name="date_to" value="{{ date_to }}" style="
+                        width:100%; border:1.5px solid #c8e8f5; border-radius:10px;
+                        padding:9px 12px; font-family:'Sarabun',sans-serif; font-size:0.9rem;
+                        color:#1a2e38; background:#fff; outline:none; box-sizing:border-box;
+                    " onfocus="this.style.borderColor='#29abe2'" onblur="this.style.borderColor='#c8e8f5'">
+                </div>
+
+                <!-- ล้างค่า -->
+                <div class="col-md-2 d-flex align-items-end">
+                    <a href="{% url 'document_list' %}" style="
+                        width:100%; background:#f0f4f8; color:#4a5568; border:1px solid #d0dde8;
+                        border-radius:10px; padding:9px 12px; font-size:0.9rem; font-weight:600;
+                        text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px;
+                    " onmouseover="this.style.background='#eaecf0'" onmouseout="this.style.background='#f0f4f8'">
+                        ✕ ล้างค่า
+                    </a>
+                </div>
+
+            </div>
+        </form>
+    </div>
 </div>
+
+<!-- Table Card -->
+<div class="card border-0" style="border-radius:16px; box-shadow:0 2px 16px rgba(10,107,138,0.08); overflow:hidden;">
+
+    <div class="card-header d-flex align-items-center justify-content-between" style="background:#fff; border-bottom:1px solid #d0eaf7; padding:16px 22px;">
+        <span style="font-weight:700; color:#1a7fa8; font-size:1rem;">📋 รายการเอกสาร</span>
+        <span style="background:#e8f7fd; color:#1a7fa8; font-size:0.78rem; padding:5px 12px; border-radius:20px; font-weight:600;">
+            {{ documents|length }} รายการ
+        </span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table mb-0" style="font-size:0.9rem;">
+            <thead>
+                <tr style="background:#f0f9fe;">
+                    <th style="padding:12px 16px; color:#1a7fa8; font-weight:600; border-bottom:2px solid #d0eaf7; white-space:nowrap;">เลขรับ</th>
+                    <th style="padding:12px 16px; color:#1a7fa8; font-weight:600; border-bottom:2px solid #d0eaf7;">เรื่อง</th>
+                    <th style="padding:12px 16px; color:#1a7fa8; font-weight:600; border-bottom:2px solid #d0eaf7; text-align:center; white-space:nowrap;">ประเภท</th>
+                    <th style="padding:12px 16px; color:#1a7fa8; font-weight:600; border-bottom:2px solid #d0eaf7; text-align:center; white-space:nowrap;">ความลับ</th>
+                    <th style="padding:12px 16px; color:#1a7fa8; font-weight:600; border-bottom:2px solid #d0eaf7; text-align:center; white-space:nowrap;">ความด่วน</th>
+                    <th style="padding:12px 16px; color:#1a7fa8; font-weight:600; border-bottom:2px solid #d0eaf7; text-align:center; white-space:nowrap;">สถานะ</th>
+                    <th style="padding:12px 16px; color:#1a7fa8; font-weight:600; border-bottom:2px solid #d0eaf7; text-align:center;">ไฟล์</th>
+                    <th style="padding:12px 16px; color:#1a7fa8; font-weight:600; border-bottom:2px solid #d0eaf7; text-align:center; white-space:nowrap;">จัดการ</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for d in documents %}
+                <tr style="border-bottom:1px solid #edf6fb; transition:background 0.15s;"
+                    onmouseover="this.style.background='#f0f9fe'"
+                    onmouseout="this.style.background=''">
+
+                    <td style="padding:12px 16px; font-weight:700; color:#29abe2; white-space:nowrap;">{{ d.doc_no }}</td>
+
+                    <td style="padding:12px 16px; color:#1a2e38; max-width:240px;">
+                        <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:220px;" title="{{ d.subject }}">
+                            {{ d.subject }}
+                        </div>
+                    </td>
+
+                    <td style="padding:12px 16px; text-align:center;">
+                        <span style="background:#e8f7fd; color:#1a7fa8; font-size:0.75rem; font-weight:600; padding:3px 10px; border-radius:20px; white-space:nowrap;">
+                            {{ d.get_doc_type_display }}
+                        </span>
+                    </td>
+
+                    <td style="padding:12px 16px; text-align:center;">
+                        <span style="font-size:0.75rem; font-weight:600; padding:3px 10px; border-radius:20px; white-space:nowrap;
+                            {% if d.secret_level == 'topsecret' or d.secret_level == 'verysecret' %}background:#fde8e8;color:#9c2020;
+                            {% elif d.secret_level == 'secret' %}background:#fff3cd;color:#7a5000;
+                            {% else %}background:#d4f0e2;color:#1a6e36;{% endif %}">
+                            {{ d.get_secret_level_display }}
+                        </span>
+                    </td>
+
+                    <td style="padding:12px 16px; text-align:center;">
+                        <span style="font-size:0.75rem; font-weight:600; padding:3px 10px; border-radius:20px; white-space:nowrap;
+                            {% if d.urgency == 'topurgent' or d.urgency == 'veryurgent' %}background:#fde8e8;color:#9c2020;
+                            {% elif d.urgency == 'urgent' %}background:#fff3cd;color:#7a5000;
+                            {% else %}background:#e9ecef;color:#4a5568;{% endif %}">
+                            {{ d.get_urgency_display }}
+                        </span>
+                    </td>
+
+                    <td style="padding:12px 16px; text-align:center;">
+                        <span style="font-size:0.75rem; font-weight:600; padding:3px 10px; border-radius:20px; white-space:nowrap;
+                            {% if d.status == 'signed' %}background:#d4f0e2;color:#1a6e36;
+                            {% elif d.status == 'waiting' %}background:#fff3cd;color:#7a5000;
+                            {% elif d.status == 'forwarded' %}background:#d0eaf7;color:#1a7fa8;
+                            {% else %}background:#e9ecef;color:#4a5568;{% endif %}">
+                            {{ d.get_status_display }}
+                        </span>
+                    </td>
+
+                    <td style="padding:12px 16px; text-align:center;">
+                        {% if d.file %}
+                        <div style="display:flex; gap:5px; justify-content:center; flex-wrap:wrap;">
+                            <a href="{{ d.file.url }}" target="_blank" style="background:#f0f9fe;color:#1a7fa8;border:1px solid #b8e0f5;border-radius:7px;padding:4px 10px;font-size:0.75rem;font-weight:600;text-decoration:none;white-space:nowrap;">👁 เปิด</a>
+                            <a href="{% url 'download_file' d.doc_no %}" style="background:#e8f7fd;color:#1a7fa8;border:1px solid #b8e0f5;border-radius:7px;padding:4px 10px;font-size:0.75rem;font-weight:600;text-decoration:none;white-space:nowrap;">⬇ โหลด</a>
+                        </div>
+                        {% else %}
+                        <span style="color:#c0d8e4; font-size:0.82rem;">ไม่มีไฟล์</span>
+                        {% endif %}
+                    </td>
+
+                    <td style="padding:12px 16px; text-align:center;">
+                        <div style="display:flex; gap:5px; justify-content:center; flex-wrap:wrap;">
+                            <a href="{% url 'detail' d.pk %}" style="background:#29abe2;color:#fff;border-radius:7px;padding:5px 12px;font-size:0.78rem;font-weight:600;text-decoration:none;white-space:nowrap;">🔍 ดู</a>
+                            {% if user.is_superuser or user_role == 'director' or user_role == 'admin' %}
+                            <a href="{% url 'edit' d.pk %}" style="background:#fff3cd;color:#7a5000;border:1px solid #ffe082;border-radius:7px;padding:5px 12px;font-size:0.78rem;font-weight:600;text-decoration:none;white-space:nowrap;">✏️ แก้</a>
+                            <form method="post" action="{% url 'delete' d.pk %}" style="display:inline;" onsubmit="return confirm('ลบเอกสารนี้หรือไม่?')">
+                                {% csrf_token %}
+                                <button type="submit" style="background:#fde8e8;color:#9c2020;border:1px solid #f5b8b8;border-radius:7px;padding:5px 12px;font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;">🗑 ลบ</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="8" style="text-align:center; padding:56px; color:#90b8cc;">
+                        <div style="font-size:2.8rem; margin-bottom:12px;">📭</div>
+                        <div style="font-weight:600; font-size:1rem; margin-bottom:4px; color:#5a7a8a;">ไม่พบเอกสาร</div>
+                        <div style="font-size:0.85rem; color:#b0cdd8;">ลองเปลี่ยนเงื่อนไขการค้นหา</div>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
 {% endblock %}

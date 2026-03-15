@@ -1,6 +1,7 @@
 from django import forms   # ✅ เพิ่มบรรทัดนี้
 from .models import Document
-
+from django.contrib.auth.models import User
+from .models import Profile, Department
 
 class DocumentForm(forms.ModelForm):
     class Meta:
@@ -43,7 +44,7 @@ class DocumentForm(forms.ModelForm):
             'sender': forms.TextInput(attrs={'class': 'form-control'}),
             'from_org': forms.TextInput(attrs={'class': 'form-control'}),
             'to_org': forms.TextInput(attrs={'class': 'form-control'}),
-            'department': forms.TextInput(attrs={'class': 'form-control'}),
+            'department': forms.Select(attrs={'class': 'form-select'}),
             'doc_type': forms.Select(attrs={'class': 'form-select'}),
             'secret_level': forms.Select(attrs={'class': 'form-select'}),
             'urgency': forms.Select(attrs={'class': 'form-select'}),
@@ -61,4 +62,81 @@ class DocumentForm(forms.ModelForm):
             }),
         }
 
+class UserCreateForm(forms.ModelForm):
 
+    password = forms.CharField(widget=forms.PasswordInput)
+
+    role = forms.ChoiceField(choices=Profile.ROLE_CHOICES)
+
+    department = forms.ModelChoiceField(
+        queryset=Profile._meta.get_field('department').related_model.objects.all(),
+        required=False
+    )
+
+    class Meta:
+        model = User
+        fields = ['username', 'first_name', 'last_name', 'email', 'password']
+
+class UserUpdateForm(forms.ModelForm):
+
+    role = forms.ChoiceField(
+        choices=Profile.ROLE_CHOICES,
+        label="บทบาท"
+    )
+
+    department = forms.CharField(label="แผนก")
+
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email']
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.get('instance')
+        super().__init__(*args, **kwargs)
+
+        if user and hasattr(user, 'profile'):
+            self.fields['role'].initial = user.profile.role
+            self.fields['department'].initial = user.profile.department
+
+    def save(self, commit=True):
+        user = super().save(commit)
+
+        profile = user.profile
+        profile.role = self.cleaned_data['role']
+        profile.department = self.cleaned_data['department']
+        profile.save()
+
+        return user
+
+class UserCreateForm(forms.ModelForm):
+
+    password = forms.CharField(
+        widget=forms.PasswordInput,
+        label="Password"
+    )
+
+    confirm_password = forms.CharField(
+        widget=forms.PasswordInput,
+        label="Confirm Password"
+    )
+
+    role = forms.ChoiceField(choices=Profile.ROLE_CHOICES)
+
+    department = forms.ModelChoiceField(
+        queryset=Department.objects.all(),
+        required=False
+    )
+
+    class Meta:
+        model = User
+        fields = ['username', 'email']
+
+    def clean(self):
+        cleaned_data = super().clean()
+        p1 = cleaned_data.get("password")
+        p2 = cleaned_data.get("confirm_password")
+
+        if p1 != p2:
+            raise forms.ValidationError("Password ไม่ตรงกัน")
+
+        return cleaned_data

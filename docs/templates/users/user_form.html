@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}{% if form.instance.pk %}แก้ไขผู้ใช้{% else %}เพิ่มผู้ใช้{% endif %}{% endblock %}
+{% block page_title %}{% if form.instance.pk %}✏️ แก้ไขผู้ใช้{% else %}➕ เพิ่มผู้ใช้{% endif %}{% endblock %}
+
+{% block content %}
+
+<style>
+    .user-form-field label {
+        display: block;
+        font-weight: 600;
+        font-size: 0.86rem;
+        color: #1a2e38;
+        margin-bottom: 6px;
+    }
+    .user-form-field input[type="text"],
+    .user-form-field input[type="password"],
+    .user-form-field input[type="email"],
+    .user-form-field select,
+    .user-form-field textarea {
+        width: 100%;
+        border: 1.5px solid #c8e8f5;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-family: 'Sarabun', sans-serif;
+        font-size: 0.93rem;
+        color: #1a2e38;
+        background: #fff;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        outline: none;
+        box-sizing: border-box;
+    }
+    .user-form-field input:focus,
+    .user-form-field select:focus,
+    .user-form-field textarea:focus {
+        border-color: #29abe2;
+        box-shadow: 0 0 0 3px rgba(41,171,226,0.15);
+    }
+    .user-form-field ul.errorlist {
+        list-style: none;
+        padding: 0; margin: 4px 0 0;
+    }
+    .user-form-field ul.errorlist li {
+        font-size: 0.78rem;
+        color: #9c2020;
+        background: #fde8e8;
+        border-radius: 6px;
+        padding: 3px 10px;
+        display: inline-block;
+        margin-top: 3px;
+    }
+    .section-divider {
+        display: flex; align-items: center; gap: 10px;
+        margin: 24px 0 16px;
+    }
+    .section-divider .section-icon {
+        width: 30px; height: 30px;
+        background: #e8f7fd; border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.9rem; flex-shrink: 0;
+    }
+    .section-divider span {
+        font-weight: 700; font-size: 0.88rem; color: #1a7fa8;
+    }
+    .section-divider::after {
+        content: ''; flex: 1; height: 1px;
+        background: #d0eaf7;
+    }
+</style>
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 style="font-weight:700; color:#1a2e38; margin:0;">
+            {% if form.instance.pk %}แก้ไขข้อมูลผู้ใช้{% else %}เพิ่มผู้ใช้งานใหม่{% endif %}
+        </h4>
+        <small style="color:#5a7a8a;">
+            {% if form.instance.pk %}แก้ไขข้อมูลบัญชี {{ form.instance.username }}{% else %}กรอกข้อมูลเพื่อสร้างบัญชีใหม่{% endif %}
+        </small>
+    </div>
+    <a href="{% url 'user_list' %}" style="
+        background:#f0f9fe; color:#1a7fa8; border:1px solid #b8e0f5;
+        border-radius:10px; padding:8px 16px; font-size:0.86rem;
+        font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:6px;
+    ">← กลับรายชื่อ</a>
+</div>
+
+<!-- Form Card -->
+<div class="card border-0" style="border-radius:16px; box-shadow:0 2px 16px rgba(10,107,138,0.08); overflow:hidden; max-width:680px; margin:0 auto;">
+
+    <!-- Card Header -->
+    <div style="background:{% if form.instance.pk %}linear-gradient(135deg,#f0a500,#d48800){% else %}linear-gradient(135deg,#29abe2,#1a8fc2){% endif %}; padding:16px 24px; display:flex; align-items:center; gap:10px;">
+        <div style="width:36px;height:36px;background:rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;">
+            {% if form.instance.pk %}✏️{% else %}👤{% endif %}
+        </div>
+        <span style="font-weight:700; color:#fff; font-size:1rem;">
+            {% if form.instance.pk %}แก้ไขบัญชีผู้ใช้{% else %}ฟอร์มสร้างบัญชีใหม่{% endif %}
+        </span>
+    </div>
+
+    <div style="background:#fff; padding:28px 32px;">
+        <form method="post">
+            {% csrf_token %}
+
+            <!-- Section: ข้อมูลล็อกอิน -->
+            <div class="section-divider">
+                <div class="section-icon">🔐</div>
+                <span>ข้อมูลล็อกอิน</span>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-12 user-form-field">
+                    <label>Username</label>
+                    {{ form.username }}
+                </div>
+                <div class="col-md-6 user-form-field">
+                    <label>Password</label>
+                    {{ form.password }}
+                </div>
+                <div class="col-md-6 user-form-field">
+                    <label>Confirm Password</label>
+                    {{ form.confirm_password }}
+                </div>
+                <div class="col-12 user-form-field">
+                    <label>Email</label>
+                    {{ form.email }}
+                </div>
+            </div>
+
+            <!-- Section: ข้อมูลบทบาท -->
+            <div class="section-divider">
+                <div class="section-icon">🏷️</div>
+                <span>บทบาทและแผนก</span>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6 user-form-field">
+                    <label>Role</label>
+                    {{ form.role }}
+                </div>
+                <div class="col-md-6 user-form-field">
+                    <label>Department</label>
+                    {{ form.department }}
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div style="border-top:1px solid #e8f4fb; margin-top:28px; padding-top:20px; display:flex; gap:10px; align-items:center;">
+                <button type="submit" style="
+                    background:linear-gradient(135deg,#2a9d5c,#1e7a47);
+                    color:#fff; border:none; border-radius:10px;
+                    padding:11px 28px; font-family:inherit; font-size:0.95rem;
+                    font-weight:600; cursor:pointer;
+                    box-shadow:0 4px 14px rgba(42,157,92,0.3);
+                    display:inline-flex; align-items:center; gap:8px;
+                    transition:all 0.2s;
+                " onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''">
+                    💾 บันทึก
+                </button>
+                <a href="{% url 'user_list' %}" style="
+                    background:#f5f7fa; color:#4a5568; border:1px solid #d0dde8;
+                    border-radius:10px; padding:11px 22px; font-size:0.95rem;
+                    font-weight:600; text-decoration:none;
+                    display:inline-flex; align-items:center; gap:6px;
+                    transition:all 0.2s;
+                " onmouseover="this.style.background='#eaecf0'" onmouseout="this.style.background='#f5f7fa'">
+                    ✕ ยกเลิก
+                </a>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+{% endblock %}

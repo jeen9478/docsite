@@ -1,6 +1,7 @@
 import os
 import base64
 from io import BytesIO
+from urllib import request
 from django.db.models import Q
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import FileResponse, Http404
@@ -9,13 +10,18 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.core.files.base import ContentFile
-from .forms import DocumentForm
-from .models import Document, Signature, DocumentRoute, DocumentFlow, Notification, Department
+from .models import Document, Signature, DocumentRoute, DocumentFlow, Notification, Department, Profile
 from pypdf import PdfReader, PdfWriter
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 from django.conf import settings
 from .decorators import role_required
+from PIL import Image
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.urls import reverse_lazy
+from django.contrib.auth.mixins import LoginRequiredMixin
+from .forms import DocumentForm, UserCreateForm, UserUpdateForm
+from django.shortcuts import redirect
 
 @login_required
 def document_list(request):
@@ -45,32 +51,34 @@ def inbox(request):
 
 @login_required
 @require_POST
-def send_to_director(request, doc_no):
-    doc = get_object_or_404(Document, doc_no=doc_no)
+def send_to_director(request, pk):
+    doc = get_object_or_404(Document, pk=pk)
 
     doc.status = 'waiting'
     doc.save()
 
     # แจ้งเตือนผู้บริหารทุกคน
-    executives = User.objects.filter(profile__role__in=['executive', 'admin'])
+    executives = User.objects.filter(profile__role__in=['director', 'admin'])
     for exec_user in executives:
         Notification.objects.create(
             user=exec_user,
             message=f'มีเอกสาร {doc.doc_no} รอพิจารณา'
         )
 
-    return redirect('detail', pk=doc.doc_no)
-
+    return redirect('detail', pk=doc.pk)
 
 @login_required
 @require_POST
-def sign_document(request, doc_no):
-    doc = get_object_or_404(Document, doc_no=doc_no)
+def sign_document(request, pk):
+    doc = get_object_or_404(Document, pk=pk)
 
     signature_data = request.POST.get("signature_data")
     pos_x = float(request.POST.get("pos_x", 100))
     pos_y = float(request.POST.get("pos_y", 100))
     page_number = int(request.POST.get("page_number", 0))
+
+    sig_width = float(request.POST.get("sig_width", 150))
+    sig_height = float(request.POST.get("sig_height", 80))
 
     if not signature_data or not signature_data.startswith("data:image/"):
         return redirect("detail", pk=doc.pk)
@@ -111,16 +119,12 @@ def sign_document(request, doc_no):
 
     packet = BytesIO()
     can = canvas.Canvas(packet, pagesize=(page_width, page_height))
-
-    image = ImageReader(sig.signature_image.path)
-
     can.drawImage(
-        image,
+        sig.signature_image.path,
         sig.pos_x,
-        page_height - sig.pos_y - 80,
-        width=150,
-        height=150,
-        preserveAspectRatio=True,
+        sig.pos_y,
+        width=sig_width,
+        height=sig_height,
         mask='auto'
     )
 
@@ -135,7 +139,10 @@ def sign_document(request, doc_no):
             original_page.merge_page(overlay_pdf.pages[0])
         writer.add_page(original_page)
 
-    signed_filename = f"signed_{doc.doc_no}.pdf"
+
+
+
+    signed_filename = f"signed_{doc.pk}.pdf"
     signed_path = os.path.join(settings.MEDIA_ROOT, "uploads", signed_filename)
 
     with open(signed_path, "wb") as f:
@@ -155,12 +162,10 @@ def sign_document(request, doc_no):
 
     return redirect("detail", pk=doc.pk)
 
-
-
 @login_required
 @require_POST
-def forward_document(request, doc_no):
-    doc = get_object_or_404(Document, doc_no=doc_no)
+def forward_document(request, pk):
+    doc = get_object_or_404(Document, pk=pk)
     to_dept = request.POST['department']
 
     DocumentFlow.objects.create(
@@ -240,7 +245,7 @@ def document_add(request):
 
 
 @login_required
-@require_POST
+@role_required(['admin', 'director'])
 def document_delete(request, pk):
     doc = get_object_or_404(Document, pk=pk)
     doc.delete()
@@ -248,6 +253,7 @@ def document_delete(request, pk):
 
 
 @login_required
+@role_required(['admin', 'director'])
 def document_edit(request, pk):
     doc = get_object_or_404(Document, pk=pk)
 
@@ -264,49 +270,55 @@ def document_edit(request, pk):
         'doc': doc,
     })
 
-
 @login_required
-def doc_list(request):
+def document_list(request):
     q = request.GET.get('q', '')
     department = request.GET.get('department', '')
     secret = request.GET.get('secret', '')
     urgency = request.GET.get('urgency', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
 
-    docs = Document.objects.all()
+    documents = Document.objects.all().order_by('-created_at')
 
     if q:
-        docs = docs.filter(
+        documents = documents.filter(
             Q(doc_no__icontains=q) |
-            Q(subject__icontains=q)
+            Q(subject__icontains=q) |
+            Q(sender__icontains=q)
         )
 
     if department:
-        docs = docs.filter(department=department)
+        documents = documents.filter(department=department)
 
     if secret:
-        docs = docs.filter(secret_level=secret)
+        documents = documents.filter(secret_level=secret)
 
     if urgency:
-        docs = docs.filter(urgency=urgency)
+        documents = documents.filter(urgency=urgency)
 
-    departments = Document.objects.values_list(
-        'department', flat=True
-    ).distinct()
+    if date_from:
+        documents = documents.filter(date__gte=date_from)
 
-    context = {
-        'docs': docs,
+    if date_to:
+        documents = documents.filter(date__lte=date_to)
+
+    departments = Document.objects.values_list('department', flat=True).distinct()
+
+    return render(request, 'document_list.html', {
+        'documents': documents,
         'q': q,
         'department': department,
         'secret': secret,
         'urgency': urgency,
-        'departments': departments
-    }
-    return render(request, 'doc_list.html', context)
-
+        'date_from': date_from,
+        'date_to': date_to,
+        'departments': departments,
+    })
 
 @login_required
-def download_file(request, doc_no):
-    doc = get_object_or_404(Document, doc_no=doc_no)
+def download_file(request, pk):
+    doc = get_object_or_404(Document, pk=pk)
 
     if not doc.file:
         raise Http404("ไม่พบไฟล์")
@@ -345,7 +357,7 @@ def inbox_dashboard(request):
 
 
 @login_required
-@role_required('executive', 'admin')
+@role_required('director', 'admin')
 def director_dashboard(request):
     waiting_docs = Document.objects.filter(status='waiting').order_by('-created_at')
     signed_docs = Document.objects.filter(status='signed').order_by('-created_at')
@@ -364,3 +376,98 @@ def mark_notification_read(request, notif_id):
     notif.is_read = True
     notif.save()
     return redirect('inbox_dashboard')
+
+class UserListView(LoginRequiredMixin, ListView):
+    model = User
+    template_name = "users/user_list.html"
+    context_object_name = "users"
+
+
+class UserCreateView(LoginRequiredMixin, CreateView):
+
+    model = User
+    form_class = UserCreateForm
+    template_name = "users/user_form.html"
+    success_url = reverse_lazy('user_list')
+
+    def form_valid(self, form):
+
+        user = form.save(commit=False)
+        user.set_password(form.cleaned_data['password'])
+        user.save()
+
+        role = form.cleaned_data['role']
+        department = form.cleaned_data['department']
+
+        profile, created = Profile.objects.get_or_create(user=user)
+
+        profile.role = role
+        profile.department = department
+        profile.save()
+        
+        return redirect('user_list')
+
+
+class UserUpdateView(LoginRequiredMixin, UpdateView):
+
+    model = User
+    form_class = UserCreateForm
+    template_name = "users/user_form.html"
+    success_url = reverse_lazy('user_list')
+
+    def form_valid(self, form):
+
+        user = form.save(commit=False)
+
+        if form.cleaned_data['password']:
+            user.set_password(form.cleaned_data['password'])
+
+        user.save()
+
+        user.profile.role = form.cleaned_data['role']
+        user.profile.department = form.cleaned_data['department']
+        user.profile.save()
+
+        return redirect(self.success_url)
+
+
+class UserDeleteView(LoginRequiredMixin, DeleteView):
+
+    model = User
+    template_name = "users/user_confirm_delete.html"
+    success_url = reverse_lazy('user_list')
+
+    def dispatch(self, request, *args, **kwargs):
+
+        user = self.get_object()
+
+        # Director ห้ามลบ Admin
+        if request.user.profile.role == "director" and user.profile.role == "admin":
+            from django.http import HttpResponse
+            return HttpResponse("Director cannot delete Admin")
+
+        return super().dispatch(request, *args, **kwargs)
+
+def user_create(request):
+
+    if request.method == "POST":
+
+        username = request.POST['username']
+        password = request.POST['password']
+        role = request.POST['role']
+        department_id = request.POST['department']
+
+        user = User.objects.create_user(
+            username=username,
+            password=password
+        )
+
+        department = Department.objects.get(id=department_id)
+
+        Profile.objects.create(
+            user=user,
+            role=role,
+            department=department
+        )
+
+        return redirect('user_list')

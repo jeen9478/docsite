@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}ยืนยันการลบผู้ใช้{% endblock %}
+{% block page_title %}🗑 ลบผู้ใช้งาน{% endblock %}
+
+{% block content %}
+
+<div style="max-width:520px; margin:0 auto;">
+
+    <!-- Warning Card -->
+    <div class="card border-0" style="border-radius:16px; box-shadow:0 2px 16px rgba(217,79,79,0.12); overflow:hidden;">
+
+        <div style="background:linear-gradient(135deg,#d94f4f,#b83232); padding:20px 24px; display:flex; align-items:center; gap:12px;">
+            <div style="width:42px;height:42px;background:rgba(255,255,255,0.2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;">⚠️</div>
+            <span style="font-weight:700; color:#fff; font-size:1.05rem;">ยืนยันการลบผู้ใช้</span>
+        </div>
+
+        <div style="background:#fff; padding:28px 32px;">
+
+            <!-- User Info -->
+            <div style="background:#fff5f5; border:1px solid #f5b8b8; border-radius:12px; padding:18px 20px; margin-bottom:24px; display:flex; align-items:center; gap:14px;">
+                <div style="width:48px;height:48px;background:linear-gradient(135deg,#d94f4f,#b83232);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:1.1rem;flex-shrink:0;">
+                    {{ object.username|slice:":1"|upper }}
+                </div>
+                <div>
+                    <div style="font-weight:700; color:#1a2e38; font-size:1rem;">{{ object.username }}</div>
+                    {% if object.first_name or object.last_name %}
+                    <div style="font-size:0.85rem; color:#5a7a8a;">{{ object.first_name }} {{ object.last_name }}</div>
+                    {% endif %}
+                    {% if object.email %}
+                    <div style="font-size:0.82rem; color:#90b8cc;">{{ object.email }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Warning Message -->
+            <div style="display:flex; gap:10px; align-items:flex-start; margin-bottom:24px;">
+                <span style="font-size:1.2rem; flex-shrink:0;">⚠️</span>
+                <div style="font-size:0.92rem; color:#5a3c00; line-height:1.6;">
+                    คุณต้องการลบผู้ใช้ <strong style="color:#9c2020;">{{ object.username }}</strong> ออกจากระบบใช่หรือไม่?
+                    <div style="margin-top:6px; font-size:0.82rem; color:#9c2020; background:#fde8e8; border-radius:8px; padding:8px 12px;">
+                        ⚠️ การดำเนินการนี้ไม่สามารถย้อนกลับได้
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <form method="post">
+                {% csrf_token %}
+                <div style="display:flex; gap:10px;">
+                    <button type="submit" style="
+                        background:linear-gradient(135deg,#d94f4f,#b83232);
+                        color:#fff; border:none; border-radius:10px;
+                        padding:11px 24px; font-family:inherit; font-size:0.95rem;
+                        font-weight:600; cursor:pointer;
+                        box-shadow:0 4px 14px rgba(217,79,79,0.3);
+                        display:inline-flex; align-items:center; gap:8px;
+                        transition:all 0.2s;
+                    " onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''">
+                        🗑 ยืนยันลบผู้ใช้
+                    </button>
+                    <a href="{% url 'user_list' %}" style="
+                        background:#f5f7fa; color:#4a5568; border:1px solid #d0dde8;
+                        border-radius:10px; padding:11px 22px; font-size:0.95rem;
+                        font-weight:600; text-decoration:none;
+                        display:inline-flex; align-items:center; gap:6px;
+                        transition:all 0.2s;
+                    " onmouseover="this.style.background='#eaecf0'" onmouseout="this.style.background='#f5f7fa'">
+                        ✕ ยกเลิก
+                    </a>
+                </div>
+            </form>
+
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

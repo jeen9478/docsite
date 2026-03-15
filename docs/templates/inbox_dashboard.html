@@ -1,97 +1,131 @@
 {% extends 'base.html' %}
 
 {% block title %}Inbox เอกสาร{% endblock %}
+{% block page_title %}📥 Inbox เอกสาร{% endblock %}
 
 {% block content %}
 
-<h2 class="mb-4">📥 Inbox เอกสาร</h2>
-
 <!-- การแจ้งเตือน -->
 {% if notifications %}
-<div class="alert alert-info alert-dismissible fade show" role="alert">
-    <strong>แจ้งเตือน:</strong>
-    <ul class="mb-0">
-    {% for notif in notifications %}
-        <li>
-            {{ notif.message }}
-            <form method="post" action="{% url 'mark_notification_read' notif.id %}" style="display:inline;">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-sm btn-outline-info">อ่านแล้ว</button>
-            </form>
-        </li>
-    {% endfor %}
-    </ul>
+<div class="alert d-flex align-items-start gap-3 mb-4" style="background:#fff8e1; border:1px solid #ffe082; border-radius:12px; padding:16px 20px;">
+    <span style="font-size:1.4rem;">🔔</span>
+    <div>
+        <strong style="color:#7a5000;">แจ้งเตือนใหม่</strong>
+        <ul class="mb-0 mt-1" style="color:#5a3c00; font-size:0.9rem;">
+        {% for notif in notifications %}
+            <li class="mb-1">
+                {{ notif.message }}
+                <form method="post" action="{% url 'mark_notification_read' notif.id %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm ms-2" style="font-size:0.75rem; padding:2px 10px; background:#ffe082; border:none; border-radius:20px; color:#5a3c00;">✓ อ่านแล้ว</button>
+                </form>
+            </li>
+        {% endfor %}
+        </ul>
+    </div>
 </div>
 {% endif %}
 
 <!-- สรุปจำนวน -->
-<div class="row mb-4">
+<div class="row g-3 mb-4">
     <div class="col-md-4">
-        <div class="card text-bg-primary">
-            <div class="card-body">
-                <h5>เอกสารทั้งหมด</h5>
-                <h2>{{ total_docs }}</h2>
+        <div class="card border-0 h-100" style="border-radius:14px; background:linear-gradient(135deg,#29abe2,#1a8fc2); box-shadow:0 4px 16px rgba(41,171,226,0.25);">
+            <div class="card-body d-flex align-items-center gap-3 p-4">
+                <div style="width:52px;height:52px;background:rgba(255,255,255,0.2);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;">📄</div>
+                <div>
+                    <div style="font-size:0.8rem;color:rgba(255,255,255,0.75);font-weight:500;letter-spacing:0.05em;">เอกสารทั้งหมด</div>
+                    <div style="font-size:2rem;font-weight:700;color:#fff;line-height:1.1;">{{ total_docs }}</div>
+                </div>
             </div>
         </div>
     </div>
 
     <div class="col-md-4">
-        <div class="card text-bg-success">
-            <div class="card-body">
-                <h5>ตอบรับแล้ว</h5>
-                <h2>{{ accepted_docs }}</h2>
+        <div class="card border-0 h-100" style="border-radius:14px; background:linear-gradient(135deg,#2a9d5c,#1e7a47); box-shadow:0 4px 16px rgba(42,157,92,0.25);">
+            <div class="card-body d-flex align-items-center gap-3 p-4">
+                <div style="width:52px;height:52px;background:rgba(255,255,255,0.2);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;">✅</div>
+                <div>
+                    <div style="font-size:0.8rem;color:rgba(255,255,255,0.75);font-weight:500;letter-spacing:0.05em;">ตอบรับแล้ว</div>
+                    <div style="font-size:2rem;font-weight:700;color:#fff;line-height:1.1;">{{ accepted_docs }}</div>
+                </div>
             </div>
         </div>
     </div>
 
     <div class="col-md-4">
-        <div class="card text-bg-warning">
-            <div class="card-body">
-                <h5>รอการตอบรับ</h5>
-                <h2>{{ pending_docs }}</h2>
+        <div class="card border-0 h-100" style="border-radius:14px; background:linear-gradient(135deg,#f0a500,#d48800); box-shadow:0 4px 16px rgba(230,168,23,0.25);">
+            <div class="card-body d-flex align-items-center gap-3 p-4">
+                <div style="width:52px;height:52px;background:rgba(255,255,255,0.2);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;">⏳</div>
+                <div>
+                    <div style="font-size:0.8rem;color:rgba(255,255,255,0.75);font-weight:500;letter-spacing:0.05em;">รอการตอบรับ</div>
+                    <div style="font-size:2rem;font-weight:700;color:#fff;line-height:1.1;">{{ pending_docs }}</div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <!-- ตารางเอกสาร -->
-<table class="table table-bordered table-hover">
-    <thead class="table-light">
-        <tr>
-            <th>เลขรับ</th>
-            <th>ชื่อเรื่อง</th>
-            <th>ผู้ส่ง</th>
-            <th>วันที่ส่ง</th>
-            <th>สถานะ</th>
-            <th>จัดการ</th>
-        </tr>
-    </thead>
-    <tbody>
-    {% for doc in documents %}
-        <tr>
-            <td class="fw-bold">{{ doc.doc_no }}</td>
-            <td>{{ doc.subject }}</td>
-            <td>{{ doc.sender }}</td>
-            <td>{{ doc.created_at|date:"d/m/Y H:i" }}</td>
-            <td>
-                <span class="badge rounded-pill
-                {% if doc.status == 'signed' %} bg-success
-                {% elif doc.status == 'waiting' %} bg-warning text-dark
-                {% elif doc.status == 'forwarded' %} bg-info
-                {% else %} bg-secondary {% endif %}">
-                {{ doc.get_status_display }}
-                </span>
-            </td>
-            <td>
-                <a href="{% url 'detail' doc.pk %}" class="btn btn-sm btn-info">ดู</a>
-            </td>
-        </tr>
-    {% empty %}
-        <tr>
-            <td colspan="6" class="text-center">ไม่มีเอกสาร</td>
-        </tr>
-    {% endfor %}
-    </tbody>
-</table>
+<div class="card border-0" style="border-radius:16px; box-shadow:0 2px 16px rgba(10,107,138,0.08);">
+    <div class="card-header d-flex align-items-center justify-content-between" style="background:#fff; border-bottom:1px solid #d0eaf7; border-radius:16px 16px 0 0; padding:16px 22px;">
+        <span style="font-weight:700; color:#1a7fa8; font-size:1rem;">📋 รายการเอกสารใน Inbox</span>
+        <span class="badge" style="background:#e8f7fd; color:#1a7fa8; font-size:0.78rem; padding:5px 12px; border-radius:20px; font-weight:600;">
+            ทั้งหมด {{ documents|length }} รายการ
+        </span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table mb-0" style="font-size:0.93rem;">
+            <thead>
+                <tr style="background:#f0f9fe;">
+                    <th style="padding:12px 18px; color:#1a7fa8; font-weight:600; border-bottom:2px solid #d0eaf7; white-space:nowrap;">เลขรับ</th>
+                    <th style="padding:12px 18px; color:#1a7fa8; font-weight:600; border-bottom:2px solid #d0eaf7;">ชื่อเรื่อง</th>
+                    <th style="padding:12px 18px; color:#1a7fa8; font-weight:600; border-bottom:2px solid #d0eaf7; white-space:nowrap;">ผู้ส่ง</th>
+                    <th style="padding:12px 18px; color:#1a7fa8; font-weight:600; border-bottom:2px solid #d0eaf7; white-space:nowrap;">วันที่ส่ง</th>
+                    <th style="padding:12px 18px; color:#1a7fa8; font-weight:600; border-bottom:2px solid #d0eaf7; text-align:center;">สถานะ</th>
+                    <th style="padding:12px 18px; color:#1a7fa8; font-weight:600; border-bottom:2px solid #d0eaf7; text-align:center;">จัดการ</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for doc in documents %}
+                <tr style="border-bottom:1px solid #edf6fb; transition:background 0.15s;" onmouseover="this.style.background='#f0f9fe'" onmouseout="this.style.background=''">
+                    <td style="padding:13px 18px; font-weight:700; color:#29abe2; white-space:nowrap;">{{ doc.doc_no }}</td>
+                    <td style="padding:13px 18px; color:#1a2e38;">{{ doc.subject }}</td>
+                    <td style="padding:13px 18px; color:#3a6a8a; white-space:nowrap;">{{ doc.sender }}</td>
+                    <td style="padding:13px 18px; color:#5a7a8a; white-space:nowrap; font-size:0.85rem;">{{ doc.created_at|date:"d/m/Y H:i" }}</td>
+                    <td style="padding:13px 18px; text-align:center;">
+                        <span style="
+                            display:inline-block;
+                            font-size:0.75rem;
+                            font-weight:600;
+                            padding:4px 12px;
+                            border-radius:20px;
+                            letter-spacing:0.03em;
+                            {% if doc.status == 'signed' %}background:#d4f0e2;color:#1a6e36;
+                            {% elif doc.status == 'waiting' %}background:#fff3cd;color:#7a5000;
+                            {% elif doc.status == 'forwarded' %}background:#d0eaf7;color:#1a7fa8;
+                            {% else %}background:#e9ecef;color:#4a5568;{% endif %}
+                        ">
+                            {{ doc.get_status_display }}
+                        </span>
+                    </td>
+                    <td style="padding:13px 18px; text-align:center;">
+                        <a href="{% url 'detail' doc.pk %}" class="btn btn-sm" style="background:#29abe2; color:#fff; border:none; border-radius:8px; padding:5px 14px; font-size:0.82rem; font-weight:500; text-decoration:none;">
+                            🔍 ดูเอกสาร
+                        </a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align:center; padding:48px; color:#90b8cc;">
+                        <div style="font-size:2.5rem; margin-bottom:10px;">📭</div>
+                        <div style="font-weight:500;">ไม่มีเอกสารใน Inbox</div>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 
 {% endblock %}

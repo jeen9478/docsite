@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}จัดการผู้ใช้งาน{% endblock %}
+{% block page_title %}👥 จัดการผู้ใช้งาน{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 style="font-weight:700; color:#1a2e38; margin:0;">จัดการผู้ใช้งาน</h4>
+        <small style="color:#5a7a8a;">เพิ่ม แก้ไข และลบบัญชีผู้ใช้ในระบบ</small>
+    </div>
+    <a href="{% url 'user_create' %}" style="
+        background:linear-gradient(135deg,#29abe2,#1a8fc2);
+        color:#fff; border:none; border-radius:10px;
+        padding:10px 20px; font-family:inherit; font-size:0.9rem;
+        font-weight:600; text-decoration:none; display:inline-flex;
+        align-items:center; gap:8px;
+        box-shadow:0 4px 14px rgba(41,171,226,0.35);
+        transition:all 0.2s;
+    " onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''">
+        ➕ เพิ่มผู้ใช้
+    </a>
+</div>
+
+<!-- Table Card -->
+<div class="card border-0" style="border-radius:16px; box-shadow:0 2px 16px rgba(10,107,138,0.08); overflow:hidden;">
+
+    <div class="card-header d-flex align-items-center justify-content-between" style="background:#fff; border-bottom:1px solid #d0eaf7; padding:16px 22px;">
+        <span style="font-weight:700; color:#1a7fa8; font-size:1rem;">👥 รายชื่อผู้ใช้งานทั้งหมด</span>
+        <span style="background:#e8f7fd; color:#1a7fa8; font-size:0.78rem; padding:5px 12px; border-radius:20px; font-weight:600;">
+            {{ users|length }} บัญชี
+        </span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table mb-0" style="font-size:0.9rem;">
+            <thead>
+                <tr style="background:#f0f9fe;">
+                    <th style="padding:12px 18px; color:#1a7fa8; font-weight:600; border-bottom:2px solid #d0eaf7;">ผู้ใช้งาน</th>
+                    <th style="padding:12px 18px; color:#1a7fa8; font-weight:600; border-bottom:2px solid #d0eaf7;">ชื่อ-นามสกุล</th>
+                    <th style="padding:12px 18px; color:#1a7fa8; font-weight:600; border-bottom:2px solid #d0eaf7; text-align:center; white-space:nowrap;">บทบาท</th>
+                    <th style="padding:12px 18px; color:#1a7fa8; font-weight:600; border-bottom:2px solid #d0eaf7; text-align:center; white-space:nowrap;">แผนก</th>
+                    <th style="padding:12px 18px; color:#1a7fa8; font-weight:600; border-bottom:2px solid #d0eaf7; text-align:center; white-space:nowrap;">จัดการ</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for user in users %}
+                <tr style="border-bottom:1px solid #edf6fb; transition:background 0.15s;"
+                    onmouseover="this.style.background='#f0f9fe'"
+                    onmouseout="this.style.background=''">
+
+                    <!-- Username + Avatar -->
+                    <td style="padding:12px 18px;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div style="
+                                width:36px; height:36px;
+                                background:linear-gradient(135deg,#29abe2,#1a8fc2);
+                                border-radius:50%; display:flex; align-items:center;
+                                justify-content:center; color:#fff; font-weight:700;
+                                font-size:0.9rem; flex-shrink:0;
+                            ">{{ user.username|slice:":1"|upper }}</div>
+                            <span style="font-weight:600; color:#1a2e38;">{{ user.username }}</span>
+                        </div>
+                    </td>
+
+                    <!-- ชื่อ -->
+                    <td style="padding:12px 18px; color:#3a5a6a;">
+                        {% if user.first_name or user.last_name %}
+                            {{ user.first_name }} {{ user.last_name }}
+                        {% else %}
+                            <span style="color:#b0cdd8; font-size:0.85rem;">ไม่ระบุ</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- บทบาท -->
+                    <td style="padding:12px 18px; text-align:center;">
+                        {% if user.profile %}
+                        <span style="
+                            font-size:0.75rem; font-weight:600; padding:4px 12px;
+                            border-radius:20px; white-space:nowrap;
+                            {% if user.profile.role == 'director' %}background:#e8f7fd;color:#1a7fa8;
+                            {% elif user.profile.role == 'admin' %}background:#fde8e8;color:#9c2020;
+                            {% else %}background:#f0f4f8;color:#4a5568;{% endif %}
+                        ">{{ user.profile.get_role_display }}</span>
+                        {% else %}
+                        <span style="color:#b0cdd8; font-size:0.82rem;">-</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- แผนก -->
+                    <td style="padding:12px 18px; text-align:center;">
+                        {% if user.profile and user.profile.department %}
+                        <span style="background:#f0f9fe; color:#1a7fa8; font-size:0.75rem; font-weight:600; padding:3px 10px; border-radius:20px; white-space:nowrap;">
+                            {{ user.profile.department }}
+                        </span>
+                        {% else %}
+                        <span style="color:#b0cdd8; font-size:0.82rem;">-</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Actions -->
+                    <td style="padding:12px 18px; text-align:center;">
+                        <div style="display:flex; gap:6px; justify-content:center;">
+                            <a href="{% url 'user_update' user.id %}" style="
+                                background:#fff3cd; color:#7a5000; border:1px solid #ffe082;
+                                border-radius:7px; padding:5px 12px; font-size:0.78rem;
+                                font-weight:600; text-decoration:none; white-space:nowrap;
+                            ">✏️ แก้ไข</a>
+                            <a href="{% url 'user_delete' user.id %}" style="
+                                background:#fde8e8; color:#9c2020; border:1px solid #f5b8b8;
+                                border-radius:7px; padding:5px 12px; font-size:0.78rem;
+                                font-weight:600; text-decoration:none; white-space:nowrap;
+                            ">🗑 ลบ</a>
+                        </div>
+                    </td>
+
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align:center; padding:56px; color:#90b8cc;">
+                        <div style="font-size:2.8rem; margin-bottom:12px;">👤</div>
+                        <div style="font-weight:600; font-size:1rem; margin-bottom:4px; color:#5a7a8a;">ไม่มีข้อมูลผู้ใช้</div>
+                        <div style="font-size:0.85rem; color:#b0cdd8;">คลิก "เพิ่มผู้ใช้" เพื่อเริ่มต้น</div>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
